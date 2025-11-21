@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/src/assets/tiger.svg" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Overmatch</title>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
+    <script>
+        const darkClasses = ["dark", "text-foreground", "bg-background"];
+
+        // Check if user prefers dark mode
+        if (
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+        ) {
+            document.body.classList.add(...darkClasses);
+        }
+
+        // Listen for changes in color scheme preference
+        window
+            .matchMedia("(prefers-color-scheme: dark)")
+            .addEventListener("change", (e) => {
+                if (e.matches) {
+                    document.body.classList.add(...darkClasses);
+                } else {
+                    document.body.classList.remove(...darkClasses);
+                }
+            });
+    </script>
+</html>
