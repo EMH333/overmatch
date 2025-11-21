@@ -1,0 +1,257 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Overmatch Element Tracking API - DynamoDB tables and Lambda function"
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name for resource naming
+
+Resources:
+  # DynamoDB table for OSM elements
+  OSMElementsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "overmatch-osm-elements-${Environment}"
+      BillingMode: PAY_PER_REQUEST # On-demand pricing - scales automatically
+      AttributeDefinitions:
+        - AttributeName: element_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: element_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: Overmatch
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # DynamoDB table for Overture elements
+  OvertureElementsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "overmatch-overture-elements-${Environment}"
+      BillingMode: PAY_PER_REQUEST # On-demand pricing - scales automatically
+      AttributeDefinitions:
+        - AttributeName: element_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: element_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: Overmatch
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # DynamoDB table for Matches
+  MatchesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "overmatch-matches-${Environment}"
+      BillingMode: PAY_PER_REQUEST # On-demand pricing - scales automatically
+      AttributeDefinitions:
+        - AttributeName: element_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: element_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Application
+          Value: Overmatch
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # IAM role for Lambda function
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "overmatch-api-lambda-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt OSMElementsTable.Arn
+                  - !GetAtt OvertureElementsTable.Arn
+                  - !GetAtt MatchesTable.Arn
+      Tags:
+        - Key: Application
+          Value: Overmatch
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Lambda function
+  OvermatchAPIFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "overmatch-api-${Environment}"
+      Runtime: python3.12
+      Handler: api.lambda_handler.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          OSM_TABLE_NAME: !Ref OSMElementsTable
+          OVERTURE_TABLE_NAME: !Ref OvertureElementsTable
+          MATCHES_TABLE_NAME: !Ref MatchesTable
+          ENVIRONMENT: !Ref Environment
+      Code:
+        ZipFile: |
+          # Placeholder - deploy actual code using AWS CLI or deployment tool
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 501,
+                  'body': 'Deploy actual application code'
+              }
+      Tags:
+        - Key: Application
+          Value: Overmatch
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Lambda function log group
+  APILogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/overmatch-api-${Environment}"
+      RetentionInDays: 30
+
+  # API Gateway HTTP API (v2)
+  HTTPApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "overmatch-api-${Environment}"
+      Description: Overmatch Element Tracking API
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - "*"
+      Tags:
+        Application: Overmatch
+        Environment: !Ref Environment
+
+  # API Gateway integration with Lambda
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HTTPApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt OvermatchAPIFunction.Arn
+      PayloadFormatVersion: "2.0"
+      TimeoutInMillis: 30000
+
+  # API Gateway default route
+  DefaultRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HTTPApi
+      RouteKey: "$default"
+      Target: !Sub "integrations/${LambdaIntegration}"
+
+  # API Gateway stage
+  APIStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HTTPApi
+      StageName: "$default"
+      AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt APIAccessLogGroup.Arn
+        Format: "$context.requestId $context.error.message $context.error.messageString"
+      Tags:
+        Application: Overmatch
+        Environment: !Ref Environment
+
+  # API Gateway access log group
+  APIAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/overmatch-api-${Environment}"
+      RetentionInDays: 30
+
+  # Permission for API Gateway to invoke Lambda
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref OvermatchAPIFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HTTPApi}/*"
+
+Outputs:
+  APIEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !GetAtt HTTPApi.ApiEndpoint
+    Export:
+      Name: !Sub "${AWS::StackName}-APIEndpoint"
+
+  OSMTableName:
+    Description: DynamoDB table name for OSM elements
+    Value: !Ref OSMElementsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-OSMTableName"
+
+  OvertureTableName:
+    Description: DynamoDB table name for Overture elements
+    Value: !Ref OvertureElementsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-OvertureTableName"
+
+  MatchesTableName:
+    Description: DynamoDB table name for Matches
+    Value: !Ref MatchesTable
+    Export:
+      Name: !Sub "${AWS::StackName}-MatchesTableName"
+
+  LambdaFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt OvermatchAPIFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaFunctionArn"
+
+  LambdaFunctionName:
+    Description: Lambda function name
+    Value: !Ref OvermatchAPIFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaFunctionName"

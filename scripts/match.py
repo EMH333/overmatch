@@ -5,13 +5,22 @@ import pandas as pd
 from rapidfuzz import fuzz
 from rtree import index
 from tqdm import tqdm
+from shapely.geometry import Point
+
+import atlus
+import overturetoosm
 
 
 def load_and_prepare_data():
     """Load data and prepare for matching"""
     # Load data
     osm_layer = gpd.read_file("data/osm.geojson")
-    overture_layer = gpd.read_file("data/overture.geojson")
+    with open("data/overture.geojson") as f:
+        overture_json = json.load(f)
+
+    overture_layer = gpd.GeoDataFrame.from_features(
+        overture_json["features"], crs="EPSG:4326"
+    )
 
     # Use a projected CRS for accurate distance calculations
     # Choose appropriate UTM zone or use a local projection
@@ -21,15 +30,10 @@ def load_and_prepare_data():
     print(f"OSM layer has {len(osm_layer)} features")
     print(f"Overture layer has {len(overture_layer)} features")
 
-    # Pre-process Overture names once
-    overture_layer["primary_name"] = overture_layer["names"].apply(
-        lambda x: json.loads(x).get("primary", "") if pd.notna(x) else ""
-    )
-
     return osm_layer, overture_layer
 
 
-def build_spatial_index(layer):
+def build_spatial_index(layer: gpd.GeoDataFrame) -> index.Index:
     """Build spatial index for the layer"""
     spatial_idx = index.Index()
     for idx, geom in enumerate(layer.geometry):
@@ -39,12 +43,18 @@ def build_spatial_index(layer):
 
 
 def find_matches_for_point(
-    row_data, overture_layer, spatial_idx, buffer_distance=100, similarity_threshold=0.6
-):
+    row_data: pd.Series,
+    overture_layer: gpd.GeoDataFrame,
+    spatial_idx: index.Index,
+    buffer_distance: float = 100,
+    similarity_threshold: float = 0.6,
+) -> list[dict]:
     """Find matches for a single point - optimized version"""
     matches = []
-    _, row = row_data
-    point = row.geometry
+    row: pd.Series = row_data[1]
+    row: dict = {k: v for k, v in dict(row).items() if v and v is not None}
+
+    point = row.get("geometry")
     osm_name = row.get("name", "")
 
     # Skip if no name
@@ -73,7 +83,12 @@ def find_matches_for_point(
     for (cand_idx, candidate), distance in zip(
         close_candidates.iterrows(), close_distances
     ):
-        candidate_name = candidate.get("primary_name", "")
+        # Fixed name extraction
+        names_dict = candidate.get("names")
+        if names_dict and isinstance(names_dict, dict):
+            candidate_name = names_dict.get("primary", "")
+        else:
+            candidate_name = ""
 
         if not candidate_name:
             continue
@@ -81,14 +96,52 @@ def find_matches_for_point(
         similarity = fuzz.ratio(osm_name, candidate_name) / 100.0
 
         if similarity >= similarity_threshold:
+            geometry: Point = candidate.get("geometry")
+
+            # Convert point to lat/lon for output
+            point_4326 = gpd.GeoSeries([geometry], crs="EPSG:3857").to_crs("EPSG:4326")[
+                0
+            ]
+
+            for unsupported in [
+                "basic_category",
+                "geometry",
+                "filename",
+                "operating_status",
+            ]:
+                candidate.pop(unsupported)
+            candidate_tags = overturetoosm.process_place(candidate)
+
+            try:
+                address_tags = atlus.get_address(
+                    candidate_tags.get("addr:street_address", "")
+                )[0]
+                candidate_tags.update(address_tags)
+            except ValueError:
+                pass
+
+            if "addr:housenumber" in candidate_tags and "addr:housenumber" in row:
+                if candidate_tags["addr:housenumber"] != row["addr:housenumber"]:
+                    continue
+
+            try:
+                phone_tag = atlus.get_phone(candidate_tags.get("phone", ""))
+                candidate_tags.update({"phone": phone_tag})
+            except ValueError:
+                pass
+
+            for toss_tag in ["addr:country", "addr:street_address", "source"]:
+                candidate_tags.pop(toss_tag, None)
+
             matches.append(
                 {
                     "osm_id": row["id"],
                     "overture_id": candidate["id"],
-                    "lon": point.x,
-                    "lat": point.y,
-                    "distance_m": float(distance),
+                    "lon": point_4326.x,
+                    "lat": point_4326.y,
+                    "distance_m": round(float(distance), 1),
                     "similarity": similarity,
+                    "overture_tags": candidate_tags,
                 }
             )
 

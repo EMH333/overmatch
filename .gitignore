@@ -57,3 +57,5 @@ scripts/test*.py
 .DS-Store
 .zed
 .ruff_cache
+.ropeproject
+node_modules
