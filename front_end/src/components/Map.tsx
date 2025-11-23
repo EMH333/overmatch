@@ -2,30 +2,28 @@ import React, { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import arrowIcon from "../assets/arrow.svg";
-
 interface MapProps {
-  coordinates: [number, number][];
+  points: [number, number][];
   zoom?: number;
 }
 
-const Map: React.FC<MapProps> = ({ coordinates, zoom = 15 }) => {
+const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Calculate center point from coordinates
-    const bounds = coordinates.length
-      ? coordinates.reduce(
-          (bounds, coord) => bounds.extend(coord),
-          new maplibregl.LngLatBounds(coordinates[0], coordinates[0]),
-        )
-      : new maplibregl.LngLatBounds(
-          [-124.848974, 24.396308],
-          [-66.885444, 49.384358],
-        );
+    // We expect exactly 2 coordinates for the two points
+    if (points.length !== 2) {
+      console.warn("Map expects exactly 2 coordinates for two points");
+      return;
+    }
+
+    const [point1, point2] = points;
+
+    // Calculate bounds from the two points
+    const bounds = new maplibregl.LngLatBounds(point1, point1).extend(point2);
 
     // Initialize the map
     map.current = new maplibregl.Map({
@@ -54,120 +52,182 @@ const Map: React.FC<MapProps> = ({ coordinates, zoom = 15 }) => {
       },
       bounds: bounds,
       fitBoundsOptions: {
-        padding: 50,
+        padding: 100,
         maxZoom: 19,
       },
     });
 
     map.current.on("style.load", () => {
-      // Add the line source
-      map.current?.addSource("way-line", {
+      // Add source for the arrow line between points
+      map.current?.addSource("arrow-line", {
         type: "geojson",
         data: {
           type: "Feature",
           properties: {},
           geometry: {
             type: "LineString",
-            coordinates: coordinates,
+            coordinates: [point1, point2],
           },
         },
       });
 
-      // Add the line layer
+      // Add the connecting line layer
       map.current?.addLayer({
-        id: "way-line-layer",
+        id: "arrow-line-layer",
         type: "line",
-        source: "way-line",
+        source: "arrow-line",
         layout: {
           "line-join": "round",
           "line-cap": "round",
         },
         paint: {
-          "line-color": "#ff3100",
+          "line-color": "#3b82f6",
           "line-width": [
             "interpolate",
             ["linear"],
             ["zoom"],
             12,
-            4,
+            2,
             15,
-            6,
+            3,
             17,
-            8,
+            4,
             22,
-            14,
+            6,
           ],
-          "line-opacity": [
+          "line-opacity": 0.7,
+        },
+      });
+
+      // Add arrowhead decoration on the line
+      map.current?.addLayer({
+        id: "arrow-line-decoration",
+        type: "symbol",
+        source: "arrow-line",
+        layout: {
+          "symbol-placement": "line",
+          "symbol-spacing": 1000, // Large spacing so we only get one arrow
+          "text-field": "→",
+          "text-size": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            10,
-            0.9, // At zoom level 10, opacity is 0.8
+            12,
+            16,
             15,
-            0.5,
-            20,
-            0.35,
+            24,
+            17,
+            32,
+            22,
+            48,
+          ],
+          "text-keep-upright": false,
+          "text-rotation-alignment": "map",
+        },
+        paint: {
+          "text-color": "#3b82f6",
+          "text-opacity": 0.8,
+        },
+      });
+
+      // Add source for the two points
+      map.current?.addSource("points", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { type: "start" },
+              geometry: {
+                type: "Point",
+                coordinates: point1,
+              },
+            },
+            {
+              type: "Feature",
+              properties: { type: "end" },
+              geometry: {
+                type: "Point",
+                coordinates: point2,
+              },
+            },
           ],
         },
       });
 
-      // Load the arrow image
-      const arrow = new Image(60, 60);
-      arrow.onload = () => {
-        // Ensure the image is added before creating the symbol layer
-        map.current?.addImage("arrow", arrow, {});
+      // Add outer circle for points (larger, semi-transparent)
+      map.current?.addLayer({
+        id: "points-outer",
+        type: "circle",
+        source: "points",
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            12,
+            8,
+            15,
+            12,
+            17,
+            16,
+            22,
+            24,
+          ],
+          "circle-color": [
+            "match",
+            ["get", "type"],
+            "start",
+            "#22c55e", // Green for start point
+            "end",
+            "#ef4444", // Red for end point
+            "#3b82f6",
+          ],
+          "circle-opacity": 0.3,
+        },
+      });
 
-        // Only add the arrow layer if showLaneDirection is true
-        map.current?.addLayer({
-          id: "way-line-arrows",
-          type: "symbol",
-          source: "way-line",
-          layout: {
-            "symbol-placement": "line",
-            "symbol-spacing": 150,
-            "icon-image": "arrow",
-            "icon-size": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              10,
-              0.1, // At zoom level 10, icon is 0.1 times original size
-              13,
-              0.2,
-              15,
-              0.5,
-              19,
-              0.7,
-            ],
-            "icon-rotate": -90,
-          },
-          paint: {
-            "icon-opacity": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              12,
-              0, // At zoom level 12, still completely transparent
-              15,
-              0.2,
-              17,
-              0.5,
-              19,
-              0.7,
-            ],
-          },
-        });
-      };
-
-      // Set the src after setting up onload
-      arrow.src = decodeURIComponent(arrowIcon);
+      // Add inner circle for points (smaller, solid)
+      map.current?.addLayer({
+        id: "points-inner",
+        type: "circle",
+        source: "points",
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            12,
+            5,
+            15,
+            7,
+            17,
+            9,
+            22,
+            14,
+          ],
+          "circle-color": [
+            "match",
+            ["get", "type"],
+            "start",
+            "#22c55e", // Green for start point
+            "end",
+            "#ef4444", // Red for end point
+            "#3b82f6",
+          ],
+          "circle-opacity": 1,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
     });
 
     // Cleanup on unmount
     return () => {
       map.current?.remove();
     };
-  }, [coordinates, zoom]);
+  }, [points, zoom]);
 
   const [mapCenter, setMapCenter] = useState<{
     lng: number;
@@ -203,7 +263,7 @@ const Map: React.FC<MapProps> = ({ coordinates, zoom = 15 }) => {
         }
       });
     }
-  }, [coordinates]);
+  }, [points]);
 
   return (
     <div className="relative w-full h-full">

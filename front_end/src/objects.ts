@@ -27,15 +27,15 @@ export interface Tags {
 export interface OsmElement {
   type: "node" | "way" | "relation";
   id: number;
+  tags: Tags;
+  version: number;
+  user: string;
 }
 
 export interface OsmNode extends OsmElement {
   type: "node";
   lat: number;
   lon: number;
-  tags: Tags;
-  version: number;
-  user: string;
 }
 
 export interface OsmWay extends OsmElement {
@@ -43,19 +43,12 @@ export interface OsmWay extends OsmElement {
   bounds: Bounds;
   nodes: number[];
   geometry: Coordinate[];
-  tags: Tags;
-  version: number;
-  user: string;
 }
 
 export interface OsmRelation extends OsmElement {
   type: "relation";
-  id: number;
   bounds: Bounds;
   members: OsmMember[];
-  tags: Tags;
-  version: number;
-  user: string;
 }
 
 export interface OsmMember {

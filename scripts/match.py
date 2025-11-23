@@ -2,10 +2,10 @@ import json
 
 import geopandas as gpd
 import pandas as pd
+import numpy as np
 from rapidfuzz import fuzz
 from rtree import index
 from tqdm import tqdm
-from shapely.geometry import Point
 
 import atlus
 import overturetoosm
@@ -14,13 +14,17 @@ import overturetoosm
 def load_and_prepare_data():
     """Load data and prepare for matching"""
     # Load data
-    osm_layer = gpd.read_file("data/osm.geojson")
+    osm_layer = gpd.read_file("data/osm_qlever.geojson")
     with open("data/overture.geojson") as f:
         overture_json = json.load(f)
 
     overture_layer = gpd.GeoDataFrame.from_features(
         overture_json["features"], crs="EPSG:4326"
     )
+
+    # Store original 4326 coordinates to avoid repeated CRS transformations
+    overture_layer["lon"] = overture_layer.geometry.x
+    overture_layer["lat"] = overture_layer.geometry.y
 
     # Use a projected CRS for accurate distance calculations
     # Choose appropriate UTM zone or use a local projection
@@ -42,9 +46,42 @@ def build_spatial_index(layer: gpd.GeoDataFrame) -> index.Index:
     return spatial_idx
 
 
+def preprocess_overture_layer(overture_layer: gpd.GeoDataFrame) -> dict:
+    """Pre-extract frequently accessed data for faster lookup"""
+    print("Preprocessing overture layer...")
+
+    preprocessed = {"names": [], "ids": [], "lon": [], "lat": [], "geometries": []}
+
+    # Extract data by position to match spatial index
+    for i in range(len(overture_layer)):
+        row = overture_layer.iloc[i]
+
+        # Extract name
+        names_dict = row.get("names")
+        if names_dict and isinstance(names_dict, dict):
+            name = names_dict.get("primary", "")
+        else:
+            name = ""
+
+        preprocessed["names"].append(name)
+        preprocessed["ids"].append(row["id"])
+        preprocessed["lon"].append(row["lon"])
+        preprocessed["lat"].append(row["lat"])
+        preprocessed["geometries"].append(row.geometry)
+
+    # Convert to numpy for faster indexing
+    preprocessed["names"] = np.array(preprocessed["names"], dtype=object)
+    preprocessed["ids"] = np.array(preprocessed["ids"], dtype=object)
+    preprocessed["lon"] = np.array(preprocessed["lon"], dtype=float)
+    preprocessed["lat"] = np.array(preprocessed["lat"], dtype=float)
+
+    return preprocessed
+
+
 def find_matches_for_point(
     row_data: pd.Series,
     overture_layer: gpd.GeoDataFrame,
+    preprocessed: dict,
     spatial_idx: index.Index,
     buffer_distance: float = 100,
     similarity_threshold: float = 0.6,
@@ -70,53 +107,62 @@ def find_matches_for_point(
     if not candidate_indices:
         return matches
 
-    # Vectorized distance calculation for all candidates
-    candidates = overture_layer.iloc[candidate_indices]
-    distances = candidates.geometry.distance(point)
+    # Calculate distances using preprocessed geometries
+    candidate_geoms = [preprocessed["geometries"][i] for i in candidate_indices]
+    distances = np.array([geom.distance(point) for geom in candidate_geoms])
 
     # Filter by distance first
-    within_distance = distances <= buffer_distance
-    close_candidates = candidates[within_distance]
-    close_distances = distances[within_distance]
+    within_distance_mask = distances <= buffer_distance
+    close_indices = np.array(candidate_indices)[within_distance_mask]
+    close_distances = distances[within_distance_mask]
+
+    if len(close_indices) == 0:
+        return matches
+
+    # Get pre-extracted names for close candidates
+    close_names = preprocessed["names"][close_indices]
 
     # Now check string similarity only for close candidates
-    for (cand_idx, candidate), distance in zip(
-        close_candidates.iterrows(), close_distances
+    for idx, distance, candidate_name in zip(
+        close_indices, close_distances, close_names
     ):
-        # Fixed name extraction
-        names_dict = candidate.get("names")
-        if names_dict and isinstance(names_dict, dict):
-            candidate_name = names_dict.get("primary", "")
-        else:
-            candidate_name = ""
-
         if not candidate_name:
             continue
 
         similarity = fuzz.ratio(osm_name, candidate_name) / 100.0
 
         if similarity >= similarity_threshold:
-            geometry: Point = candidate.get("geometry")
+            # Use pre-stored lat/lon
+            lon = preprocessed["lon"][idx]
+            lat = preprocessed["lat"][idx]
 
-            # Convert point to lat/lon for output
-            point_4326 = gpd.GeoSeries([geometry], crs="EPSG:3857").to_crs("EPSG:4326")[
-                0
-            ]
+            # Get full candidate row only when needed
+            candidate = overture_layer.iloc[idx]
 
-            for unsupported in [
-                "basic_category",
-                "geometry",
-                "filename",
-                "operating_status",
-            ]:
-                candidate.pop(unsupported)
-            candidate_tags = overturetoosm.process_place(candidate)
+            # Build dict for processing without copying entire Series
+            candidate_dict = {}
+            for key in candidate.index:
+                if key not in [
+                    "basic_category",
+                    "geometry",
+                    "filename",
+                    "operating_status",
+                    "lon",
+                    "lat",
+                ]:
+                    val = candidate[key]
+                    if val is not None and not (
+                        isinstance(val, float) and pd.isna(val)
+                    ):
+                        candidate_dict[key] = val
+
+            candidate_tags = overturetoosm.process_place(candidate_dict)
 
             try:
-                address_tags = atlus.get_address(
-                    candidate_tags.get("addr:street_address", "")
-                )[0]
-                candidate_tags.update(address_tags)
+                street_addr = candidate_tags.get("addr:street_address", "")
+                if street_addr:
+                    address_tags = atlus.get_address(street_addr)[0]
+                    candidate_tags.update(address_tags)
             except ValueError:
                 pass
 
@@ -125,8 +171,10 @@ def find_matches_for_point(
                     continue
 
             try:
-                phone_tag = atlus.get_phone(candidate_tags.get("phone", ""))
-                candidate_tags.update({"phone": phone_tag})
+                phone = candidate_tags.get("phone", "")
+                if phone:
+                    phone_tag = atlus.get_phone(phone)
+                    candidate_tags.update({"phone": phone_tag})
             except ValueError:
                 pass
 
@@ -135,10 +183,10 @@ def find_matches_for_point(
 
             matches.append(
                 {
-                    "osm_id": row["id"],
-                    "overture_id": candidate["id"],
-                    "lon": point_4326.x,
-                    "lat": point_4326.y,
+                    "osm_id": row["@id"],
+                    "overture_id": preprocessed["ids"][idx],
+                    "lon": float(lon),
+                    "lat": float(lat),
                     "distance_m": round(float(distance), 1),
                     "similarity": similarity,
                     "overture_tags": candidate_tags,
@@ -148,11 +196,13 @@ def find_matches_for_point(
     return matches
 
 
-def process_chunk(chunk_data, overture_layer, spatial_idx):
+def process_chunk(chunk_data, overture_layer, preprocessed, spatial_idx):
     """Process a chunk of OSM features"""
     all_matches = []
     for row_data in chunk_data:
-        matches = find_matches_for_point(row_data, overture_layer, spatial_idx)
+        matches = find_matches_for_point(
+            row_data, overture_layer, preprocessed, spatial_idx
+        )
         all_matches.extend(matches)
     return all_matches
 
@@ -164,6 +214,9 @@ def main():
     # Build spatial index
     spatial_idx = build_spatial_index(overture_layer)
 
+    # Preprocess overture layer for faster access
+    preprocessed = preprocess_overture_layer(overture_layer)
+
     # Prepare row data for processing
     row_data = list(osm_layer.iterrows())
 
@@ -171,7 +224,9 @@ def main():
     print("Processing matches...")
     all_matches = []
     for data in tqdm(row_data, total=len(osm_layer)):
-        matches = find_matches_for_point(data, overture_layer, spatial_idx)
+        matches = find_matches_for_point(
+            data, overture_layer, preprocessed, spatial_idx
+        )
         all_matches.extend(matches)
 
     # Option 2: Parallel processing (uncomment to use)
@@ -181,6 +236,7 @@ def main():
     #
     # process_func = partial(process_chunk,
     #                       overture_layer=overture_layer,
+    #                       preprocessed=preprocessed,
     #                       spatial_idx=spatial_idx)
     #
     # with Pool(cpu_count()) as pool:

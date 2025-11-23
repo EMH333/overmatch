@@ -46,7 +46,7 @@ const IconImage = ({
 const EXTERNAL_LINKS = [
   {
     key: "github",
-    href: "https://github.com/whubsch/tigerking",
+    href: "https://github.com/whubsch/overmatch",
     label: "GitHub",
   },
   {
@@ -177,7 +177,7 @@ const MainNavbar: React.FC<NavbarProps> = ({
   return (
     <>
       <Navbar maxWidth="full" position="static" className="shadow">
-        <NavbarBrand className="gap-4 flex-grow-0" as={Link} href="/tigerking/">
+        <NavbarBrand className="gap-4 flex-grow-0" as={Link} href="/overmatch/">
           <img src={logo} alt="Logo" className="w-8 h-8" />
           <h1 className="text-xl font-bold text-black dark:text-white">
             TIGER King

@@ -29,7 +29,7 @@ const CardHeading: React.FC<CardHeadingProps> = ({
             size="sm"
             variant="light"
             color="danger"
-            href="/tigerking/"
+            href="/overmatch/"
             as={Link}
           >
             Clear

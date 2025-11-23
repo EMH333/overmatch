@@ -89,7 +89,7 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   const handleSubmit = () => {
     if (selectedLocation) {
       // Navigate to the location page with the osm_id
-      window.location.href = `/tigerking/?relation=${selectedLocation.properties.osm_id}`;
+      window.location.href = `/overmatch/?relation=${selectedLocation.properties.osm_id}`;
     }
   };
 

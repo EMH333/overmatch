@@ -43,7 +43,7 @@ export const osmXmlBuilder = {
   createChangeSet(ways: OsmWay[], changeset: number): string {
     const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("osmChange", {
       version: "0.6",
-      generator: "tigerking",
+      generator: "overmatch",
     });
 
     // Iterate through ways

@@ -5,66 +5,38 @@ import { Spinner } from "@heroui/spinner";
 import RelationHeading from "./RelationHeading";
 import LocationAutocomplete from "./LocationAutocomplete";
 import NoRelationPlaceholder from "./NoRelationPlaceholder";
-import { OsmWay } from "../objects";
+import { OsmElement } from "../objects";
 import { useChangesetStore } from "../stores/useChangesetStore";
 
 interface LeftPaneProps {
   showRelationHeading: boolean;
-  overpassWays: OsmWay[];
-  setOverpassWays: (ways: OsmWay[]) => void;
-  currentWay: number;
+  overpassElements: OsmElement[];
+  setOverpassElements: (ways: OsmElement[]) => void;
+  currentElement: number;
   isLoading: boolean;
-  showLaneDirection: boolean;
-  setShowLaneDirection: (value: boolean) => void;
-  convertDriveway: string;
-  setConvertDriveway: (value: string) => void;
-  nameFixAction: string;
-  setNameFixAction: (action: string) => void;
-  streetAbbreviationAction: string;
-  setStreetAbbreviationAction: (action: string) => void;
-  laneTagFixAction: string;
-  setLaneTagFixAction: (action: string) => void;
-  onSkip: () => void;
-  onFix: (message: string) => void;
-  onClearTiger: () => void;
-  onSubmit: () => void;
 }
 
 const LeftPane: React.FC<LeftPaneProps> = ({
   showRelationHeading,
-  overpassWays,
-  setOverpassWays,
-  currentWay,
+  overpassElements,
+  setOverpassElements,
+  currentElement,
   isLoading,
-  showLaneDirection,
-  setShowLaneDirection,
-  convertDriveway,
-  setConvertDriveway,
-  nameFixAction,
-  setNameFixAction,
-  streetAbbreviationAction,
-  setStreetAbbreviationAction,
-  laneTagFixAction,
-  setLaneTagFixAction,
-  onSkip,
-  onFix,
-  onClearTiger,
-  onSubmit,
 }) => {
   const { relation } = useChangesetStore();
 
   const handleTagsUpdate = (
     updatedTags: Record<string, string | undefined>,
   ) => {
-    const updatedWays = [...overpassWays];
-    updatedWays[currentWay] = {
-      ...updatedWays[currentWay],
+    const updatedElements = [...overpassElements];
+    updatedElements[currentElement] = {
+      ...updatedElements[currentElement],
       tags: updatedTags,
     };
-    setOverpassWays(updatedWays);
+    setOverpassElements(updatedElements);
   };
 
-  const hasWays = overpassWays && overpassWays.length > 0;
+  const hasElements = overpassElements && overpassElements.length > 0;
 
   return (
     <div className="w-full md:w-1/3 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full">
@@ -78,34 +50,20 @@ const LeftPane: React.FC<LeftPaneProps> = ({
         </div>
       </Card>
 
-      {hasWays && (
+      {hasElements && (
         <div className="relative">
           <Divider className="my-4" />
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background px-2">
-            {currentWay + 1} of {overpassWays.length}
+            {currentElement + 1} of {overpassElements.length}
           </div>
         </div>
       )}
 
       <div className="px-4 gap-2 flex flex-col md:grow">
-        {hasWays ? (
-          <WayEditor
-            way={overpassWays[currentWay]}
+        {hasElements ? (
+          <ElementEditor
+            way={overpassElements[currentElement]}
             onTagsUpdate={handleTagsUpdate}
-            showLaneDirection={showLaneDirection}
-            setShowLaneDirection={setShowLaneDirection}
-            convertDriveway={convertDriveway}
-            setConvertDriveway={setConvertDriveway}
-            nameFixAction={nameFixAction}
-            setNameFixAction={setNameFixAction}
-            streetAbbreviationAction={streetAbbreviationAction}
-            setStreetAbbreviationAction={setStreetAbbreviationAction}
-            laneTagFixAction={laneTagFixAction}
-            setLaneTagFixAction={setLaneTagFixAction}
-            onSkip={onSkip}
-            onFix={onFix}
-            onClearTiger={onClearTiger}
-            onSubmit={onSubmit}
           />
         ) : isLoading ? (
           <div className="flex justify-center items-center mt-4">

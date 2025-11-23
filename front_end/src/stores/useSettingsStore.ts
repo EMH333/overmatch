@@ -23,7 +23,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setIncludeTracks: (enabled) => set({ includeTracks: enabled }),
     }),
     {
-      name: "tigerking-settings",
+      name: "overmatch-settings",
       storage: createJSONStorage(() => localStorage),
     },
   ),

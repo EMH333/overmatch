@@ -14,13 +14,13 @@ const EDITORS = [
     key: "id",
     label: "iD",
     getUrl: (type: string, id: string) =>
-      `https://www.openstreetmap.org/edit?editor=id&${type}=${id}&hashtags=${encodeURIComponent("#TIGERKing")}`,
+      `https://www.openstreetmap.org/edit?editor=id&${type}=${id}&hashtags=${encodeURIComponent("#overmatch")}`,
   },
   {
     key: "rapid",
     label: "Rapid",
     getUrl: (type: string, id: string) =>
-      `https://rapideditor.org/edit#id=${type.charAt(0)}${id}&hashtags=${encodeURIComponent("#TIGERKing")}`,
+      `https://rapideditor.org/edit#id=${type.charAt(0)}${id}&hashtags=${encodeURIComponent("#overmatch")}`,
   },
   {
     key: "josm",
