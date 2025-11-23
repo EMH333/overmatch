@@ -19,7 +19,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={{
-        label: "Welcome to TIGER King",
+        label: "Welcome to Overmatch",
         emoji: "👋",
         colorClass: "text-blue-600 dark:text-blue-400",
       }}
@@ -43,7 +43,7 @@ const LoginModal: React.FC<LoginModalProps> = ({
             By logging in, you'll be able to:
           </p>
           <ul className="text-left list-disc list-inside">
-            <li>Edit and correct imported TIGER data</li>
+            <li>Add key data to POIs near you</li>
             <li>Make improvements to OpenStreetMap</li>
             <li>Contribute to your local map data</li>
           </ul>

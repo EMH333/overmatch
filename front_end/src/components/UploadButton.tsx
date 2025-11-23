@@ -3,15 +3,16 @@ import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import upload from "../assets/upload.svg";
 import { uploadChanges } from "../services/upload";
-import { OsmWay } from "../objects";
+import { OsmElement } from "../objects";
 import { useChangesetStore } from "../stores/useChangesetStore";
 import Icon from "./Icon";
 
 interface UploadButtonProps {
-  uploads: OsmWay[];
-  setUploadWays: (ways: OsmWay[]) => void;
-  setChangeset: React.Dispatch<React.SetStateAction<number>>;
+  uploads: OsmElement[];
+  setUploadWays: (ways: OsmElement[]) => void;
+  setChangeset: (changeset: number) => void | Promise<void>;
   setError: React.Dispatch<React.SetStateAction<string>>;
+  isLoading?: boolean;
 }
 
 const UploadButton: React.FC<UploadButtonProps> = ({
@@ -19,37 +20,41 @@ const UploadButton: React.FC<UploadButtonProps> = ({
   setUploadWays,
   setChangeset,
   setError,
+  isLoading: externalLoading = false,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { description, databaseVersion, host } = useChangesetStore();
 
-  const handleUpload = async (uploads: OsmWay[]) => {
+  const handleUpload = async (uploads: OsmElement[]) => {
     try {
-      setIsLoading(true);
+      setIsUploading(true);
       const changeset = await uploadChanges(
-        uploads,
+        uploads as any, // TODO: Update uploadChanges to handle OsmElement
         description,
         databaseVersion,
         host,
       );
-      setChangeset(changeset);
+      await setChangeset(changeset);
       setUploadWays([]);
     } catch (error) {
       console.error("Upload failed:", error);
       setError("Error uploading OSM data: " + error);
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
     }
   };
+
+  const isButtonDisabled =
+    uploads.length === 0 || isUploading || externalLoading;
 
   return (
     <Button
       variant="flat"
       color="primary"
       className="w-full hover:border-2 hover:border-primary"
-      isDisabled={uploads.length === 0 || isLoading}
-      isLoading={isLoading}
-      startContent={!isLoading && <Icon src={upload} alt="upload" />}
+      isDisabled={isButtonDisabled}
+      isLoading={isUploading}
+      startContent={!isUploading && <Icon src={upload} alt="upload" />}
       onPress={() => handleUpload(uploads)}
     >
       Upload

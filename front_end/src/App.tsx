@@ -6,17 +6,19 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import LeftPane from "./components/LeftPane";
 import ChangesetModal from "./components/modals/ChangesetModal";
 import UploadModal from "./components/modals/UploadModal";
-// import HelpModal from "./components/modals/HelpModal";
 import AreaCompletedModal from "./components/modals/AreaCompletedModal";
 import { overpassService } from "./services/overpass";
-import useWayManagement from "./hooks/useWayManagement";
 import ErrorModal from "./components/modals/ErrorModal";
-import { OsmElement } from "./objects";
 import { useChangesetStore } from "./stores/useChangesetStore";
-import { useWayTagsStore } from "./stores/useWayTagsStore";
 import { useElementStore } from "./stores/useElementStore";
 import { useOsmAuthContext } from "./contexts/useOsmAuth";
-// import SettingsModal from "./components/modals/SettingsModal";
+import { matchingApi } from "./services/matchingApi";
+import {
+  formatOsmId,
+  shuffleArray,
+  getElementCoordinates,
+} from "./utils/osmHelpers";
+import { MatchStatus, MatchInfo } from "./types/matching";
 
 const App: React.FC = () => {
   const [showRelationHeading, setShowRelationHeading] = useState(false);
@@ -24,47 +26,25 @@ const App: React.FC = () => {
   const [showFinishedModal, setShowFinishedModal] = useState(false);
   const [isRelationLoading, setIsRelationLoading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [showHelpModal, setShowHelpModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAreaCompletedModal, setShowAreaCompletedModal] = useState(false);
   const { relation, setRelation, setHost, resetDescription } =
     useChangesetStore();
-  const { bboxState, updateFromZXY } = useBBoxStore();
-  const { params, isBoundingBox, isCenterPoint } = useMemo(
-    () => getMapParams(window.location.search),
-    [],
-  );
-  const { currentElementCoordinates } = useWayManagement();
+
   const {
     overpassElements,
     currentElement,
     uploadElements,
+    skippedOvertureIds,
     setOverpassElements,
     setCurrentElement,
     setUploadElements,
-    addToUpload,
+    setElementMatches,
   } = useElementStore();
-  const { loggedIn } = useOsmAuthContext();
+  useOsmAuthContext();
 
   useEffect(() => {
     resetDescription();
   }, [resetDescription]);
-
-  const deduplicateNewElements = useCallback(
-    (ways: OsmElement[], shuffle = true) => {
-      const unprocessedWays = ways.filter(
-        (way) =>
-          !uploadElements.some((uploadedWay) => uploadedWay.id === way.id),
-      );
-      if (shuffle) {
-        const shuffledWays = shuffleArray(unprocessedWays);
-        setOverpassElements(shuffledWays);
-      } else {
-        setOverpassElements(unprocessedWays);
-      }
-    },
-    [uploadElements, setOverpassElements], // Add uploadElements as dependency
-  );
 
   useEffect(() => {
     setHost(
@@ -75,73 +55,117 @@ const App: React.FC = () => {
     );
   }, [setHost]);
 
+  // Parse URL parameters for relation
+  const urlParams = useMemo(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    return {
+      relation: searchParams.get("relation"),
+    };
+  }, []);
+
+  // Fetch and filter elements when relation is selected
   useEffect(() => {
-    if (params.relation) {
-      const fetchWays = async (relationId: string) => {
-        // Only fetch if overpassWays is empty
-        if (relationId && overpassElements.length === 0) {
-          setIsRelationLoading(true);
-          setShowRelationHeading(true);
-          try {
-            const ways = await overpassService.fetchIdsInRelation(relationId);
-            if (ways.length === 0) {
-              setShowAreaCompletedModal(true);
-            } else {
-              setOverpassElements([]);
-              setCurrentElement(0);
+    const fetchAndFilterElements = async (relationId: string) => {
+      if (!relationId || overpassElements.length > 0) return;
 
-              deduplicateNewElements(ways);
-            }
-          } catch (error) {
-            setError("Error fetching OSM data: " + error);
-          } finally {
-            setIsRelationLoading(false);
-          }
+      setIsRelationLoading(true);
+      setShowRelationHeading(true);
+
+      try {
+        // Step 1: Fetch all restaurant/amenity elements from Overpass
+        const allElements =
+          await overpassService.fetchIdsInRelation(relationId);
+
+        if (allElements.length === 0) {
+          setShowAreaCompletedModal(true);
+          setIsRelationLoading(false);
+          return;
         }
-      };
 
-      setRelation({ id: params.relation });
-      fetchWays(relation.id);
+        // Step 2: Format OSM IDs and check which ones have matches
+        const osmIds = allElements.map(formatOsmId);
+        const matchesResponse = await matchingApi.getMatches(osmIds);
+
+        // Step 3: Filter elements based on the equation:
+        // (OSM_objects_via_Overpass - OSM_not_matched_on_server - (OSM_already_uploaded + Overture_skipped))
+
+        // Create sets for efficient lookup
+        const uploadedOsmIds = new Set(uploadElements.map(formatOsmId));
+
+        // Filter matched elements
+        const matchedElements = allElements.filter((element) => {
+          const osmId = formatOsmId(element);
+          const matchStatus = matchesResponse.elements.find(
+            (m: MatchStatus) => m.osm_id === osmId,
+          );
+
+          // Keep if: has match, not uploaded, and no skipped Overture IDs in its matches
+          if (!matchStatus || !matchStatus.has_match) return false;
+          if (uploadedOsmIds.has(osmId)) return false;
+
+          // Check if all matches have been skipped
+          const allMatchesSkipped = matchStatus.matches.every(
+            (match: MatchInfo) =>
+              skippedOvertureIds.includes(match.overture_id),
+          );
+          if (allMatchesSkipped) return false;
+
+          // Store match info for this element
+          setElementMatches(osmId, matchStatus.matches);
+
+          return true;
+        });
+
+        if (matchedElements.length === 0) {
+          setShowAreaCompletedModal(true);
+        } else {
+          // Shuffle and set elements
+          const shuffled = shuffleArray(matchedElements);
+          setOverpassElements(shuffled);
+          setCurrentElement(0);
+        }
+      } catch (error) {
+        setError("Error fetching or filtering OSM data: " + error);
+      } finally {
+        setIsRelationLoading(false);
+      }
+    };
+
+    if (urlParams.relation) {
+      setRelation({ id: urlParams.relation });
+      fetchAndFilterElements(urlParams.relation);
     }
   }, [
-    params,
-    bboxState,
+    urlParams.relation,
     overpassElements.length,
-    deduplicateNewWays,
-    relation.id,
-    setCurrentElement,
-    setOverpassElements,
+    uploadElements,
+    skippedOvertureIds,
     setRelation,
-    isBoundingBox,
-    isCenterPoint,
-    updateFromZXY,
+    setOverpassElements,
+    setCurrentElement,
+    setElementMatches,
   ]);
 
-  const handleEnd = useCallback(() => {
+  const handleNext = useCallback(() => {
     if (currentElement < overpassElements.length - 1) {
-      resetTags();
       setCurrentElement(currentElement + 1);
     } else {
       setShowFinishedModal(true);
     }
-  }, [
-    currentElement,
-    overpassElements.length,
-    setCurrentElement,
-    setShowFinishedModal,
-    resetTags,
-  ]);
+  }, [currentElement, overpassElements.length, setCurrentElement]);
+
+  // Get coordinates for current element to show on map
+  const currentElementCoordinates = useMemo(() => {
+    if (overpassElements.length === 0 || !overpassElements[currentElement]) {
+      return [];
+    }
+
+    const coords = getElementCoordinates(overpassElements[currentElement]);
+    return coords ? [coords] : [];
+  }, [overpassElements, currentElement]);
 
   return (
     <div className="flex flex-col md:h-screen">
-      {/*<SettingsModal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-      />*/}
-      {/*<HelpModal
-        isOpen={showHelpModal}
-        onClose={() => setShowHelpModal(false)}
-      />*/}
       <ErrorModal
         isOpen={Boolean(error)}
         onClose={() => setError("")}
@@ -153,9 +177,9 @@ const App: React.FC = () => {
       />
       <UploadModal
         show={showFinishedModal && !latestChangeset}
-        ways={currentElement}
+        ways={uploadElements.length}
         onClose={() => setShowFinishedModal(false)}
-        uploads={uploadElements}
+        uploads={uploadElements as any}
         setUploadElements={setUploadElements}
         setChangeset={setLatestChangeset}
         setError={setError}
@@ -168,23 +192,27 @@ const App: React.FC = () => {
       <Navbar
         uploads={uploadElements}
         setShowFinishedModal={setShowFinishedModal}
-        setShowHelpModal={setShowHelpModal}
-        setShowSettingsModal={setShowSettingsModal}
+        setShowHelpModal={() => {}}
+        setShowSettingsModal={() => {}}
       />
       <div className="flex flex-col md:flex-row flex-1 bg-background overflow-auto">
         <LeftPane
           showRelationHeading={showRelationHeading}
           overpassElements={overpassElements}
-          setOverpassElements={setOverpassElements}
           currentElement={currentElement}
           isLoading={isRelationLoading}
+          onNext={handleNext}
         />
 
         <div className="w-full flex md:flex-1 h-[600px] md:h-auto p-4">
-          <Map points={currentElementCoordinates} zoom={16} />
+          <Map
+            points={currentElementCoordinates.map((c) => [c.lon, c.lat])}
+            zoom={16}
+          />
         </div>
       </div>
     </div>
   );
 };
+
 export default App;

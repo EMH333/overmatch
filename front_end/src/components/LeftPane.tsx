@@ -1,45 +1,109 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "@heroui/card";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
+import { Button } from "@heroui/button";
 import RelationHeading from "./RelationHeading";
 import LocationAutocomplete from "./LocationAutocomplete";
 import NoRelationPlaceholder from "./NoRelationPlaceholder";
-import { OsmElement } from "../objects";
+import TagComparisonTable from "./TagComparisonTable";
+import { OsmElement, Tags } from "../objects";
 import { useChangesetStore } from "../stores/useChangesetStore";
+import { useElementStore } from "../stores/useElementStore";
+import { fetchElementTags } from "../services/osmApi";
+import { formatOsmId } from "../utils/osmHelpers";
 
 interface LeftPaneProps {
   showRelationHeading: boolean;
   overpassElements: OsmElement[];
-  setOverpassElements: (ways: OsmElement[]) => void;
   currentElement: number;
   isLoading: boolean;
+  onNext: () => void;
 }
 
 const LeftPane: React.FC<LeftPaneProps> = ({
   showRelationHeading,
   overpassElements,
-  setOverpassElements,
   currentElement,
   isLoading,
+  onNext,
 }) => {
   const { relation } = useChangesetStore();
+  const { elementMatches, addToUpload, addSkippedOvertureId } =
+    useElementStore();
+  const [liveTags, setLiveTags] = useState<Tags | null>(null);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
+  const [tagError, setTagError] = useState<string>("");
 
-  const handleTagsUpdate = (
-    updatedTags: Record<string, string | undefined>,
-  ) => {
-    const updatedElements = [...overpassElements];
-    updatedElements[currentElement] = {
-      ...updatedElements[currentElement],
+  const currentOsmElement = overpassElements[currentElement];
+  const currentOsmId = currentOsmElement
+    ? formatOsmId(currentOsmElement)
+    : null;
+  const currentMatches = currentOsmId
+    ? elementMatches.get(currentOsmId)
+    : undefined;
+
+  // Fetch live OSM tags when element changes
+  useEffect(() => {
+    const fetchLiveTags = async () => {
+      if (!currentOsmElement) return;
+
+      setIsLoadingTags(true);
+      setTagError("");
+      setLiveTags(null);
+
+      try {
+        const elementData = await fetchElementTags(
+          String(currentOsmElement.id),
+          currentOsmElement.type,
+        );
+        setLiveTags(elementData.tags);
+      } catch (error) {
+        setTagError(
+          `Failed to fetch live tags: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+        // Fallback to Overpass tags if live fetch fails
+        setLiveTags(currentOsmElement.tags);
+      } finally {
+        setIsLoadingTags(false);
+      }
+    };
+
+    fetchLiveTags();
+  }, [currentOsmElement]);
+
+  const handleApplyTags = (updatedTags: Tags) => {
+    if (!currentOsmElement) return;
+
+    // Update the element with new tags
+    const updatedElement = {
+      ...currentOsmElement,
       tags: updatedTags,
     };
-    setOverpassElements(updatedElements);
+
+    // Add to upload queue
+    addToUpload(updatedElement);
+
+    // Move to next element
+    onNext();
+  };
+
+  const handleSkipMatch = (matchIndex: number) => {
+    if (!currentMatches || !currentMatches[matchIndex]) return;
+
+    const overtureId = currentMatches[matchIndex].overture_id;
+
+    // Mark this Overture ID as skipped
+    addSkippedOvertureId(overtureId);
+
+    // Move to next element
+    onNext();
   };
 
   const hasElements = overpassElements && overpassElements.length > 0;
 
   return (
-    <div className="w-full md:w-1/3 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full">
+    <div className="w-full md:w-1/2 lg:w-2/5 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full overflow-y-auto">
       <Card>
         <div className="p-4">
           {relation.id && showRelationHeading ? (
@@ -59,15 +123,75 @@ const LeftPane: React.FC<LeftPaneProps> = ({
         </div>
       )}
 
-      <div className="px-4 gap-2 flex flex-col md:grow">
+      <div className="gap-2 flex flex-col md:grow">
         {hasElements ? (
-          <ElementEditor
-            way={overpassElements[currentElement]}
-            onTagsUpdate={handleTagsUpdate}
-          />
+          <>
+            {isLoadingTags ? (
+              <div className="flex justify-center items-center mt-4">
+                <Spinner label="Loading element tags..." color="primary" />
+              </div>
+            ) : tagError ? (
+              <Card className="p-4 bg-red-50">
+                <p className="text-red-600 text-sm">{tagError}</p>
+                <Button
+                  size="sm"
+                  color="primary"
+                  className="mt-2"
+                  onPress={onNext}
+                >
+                  Skip to Next
+                </Button>
+              </Card>
+            ) : liveTags && currentMatches ? (
+              <>
+                <Card className="p-3 bg-blue-50">
+                  <h3 className="text-sm font-semibold mb-1">
+                    Current Element
+                  </h3>
+                  <div className="text-xs space-y-1">
+                    <div>
+                      <span className="font-medium">OSM ID:</span>{" "}
+                      <span className="font-mono">{currentOsmId}</span>
+                    </div>
+                    {liveTags.name && (
+                      <div>
+                        <span className="font-medium">Name:</span>{" "}
+                        {liveTags.name}
+                      </div>
+                    )}
+                    {liveTags.amenity && (
+                      <div>
+                        <span className="font-medium">Amenity:</span>{" "}
+                        {liveTags.amenity}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                <TagComparisonTable
+                  osmTags={liveTags}
+                  matches={currentMatches}
+                  onApplyTags={handleApplyTags}
+                  onSkipMatch={handleSkipMatch}
+                />
+              </>
+            ) : (
+              <Card className="p-4">
+                <p className="text-gray-500">No match data available</p>
+                <Button
+                  size="sm"
+                  color="primary"
+                  className="mt-2"
+                  onPress={onNext}
+                >
+                  Skip to Next
+                </Button>
+              </Card>
+            )}
+          </>
         ) : isLoading ? (
           <div className="flex justify-center items-center mt-4">
-            <Spinner label="Loading ways..." color="primary" />
+            <Spinner label="Loading elements..." color="primary" />
           </div>
         ) : (
           <NoRelationPlaceholder />

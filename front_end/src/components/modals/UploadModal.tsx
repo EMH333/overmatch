@@ -5,18 +5,21 @@ import { Card } from "@heroui/card";
 import UploadButton from "../UploadButton";
 import WayAccordion from "../ElementAccordion";
 import CountBadge from "../ReviewCountBadge";
-import { OsmWay } from "../../objects";
+import { OsmElement } from "../../objects";
 import ChangesetTagTable from "../ChangesetTags";
 import ConfirmationModal from "./ConfirmationModal";
 import { useOsmAuthContext } from "../../contexts/useOsmAuth";
 import { useChangesetStore } from "../../stores/useChangesetStore";
+import { useElementStore } from "../../stores/useElementStore";
+import { matchingApi } from "../../services/matchingApi";
+import { formatOsmId } from "../../utils/osmHelpers";
 
 interface UploadModalProps {
   show: boolean;
   ways: number;
   onClose: () => void;
-  uploads: OsmWay[];
-  setUploadWays: (ways: OsmWay[]) => void;
+  uploads: OsmElement[];
+  setUploadElements: (elements: OsmElement[]) => void;
   setChangeset: React.Dispatch<React.SetStateAction<number>>;
   setError: React.Dispatch<React.SetStateAction<string>>;
 }
@@ -26,17 +29,46 @@ const UploadModal: React.FC<UploadModalProps> = ({
   ways,
   onClose,
   uploads,
-  setUploadWays,
+  setUploadElements,
   setChangeset,
   setError,
 }) => {
   const { databaseVersion, description } = useChangesetStore();
   const { osmUser } = useOsmAuthContext();
+  const { skippedOvertureIds } = useElementStore();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isPostingToApi, setIsPostingToApi] = useState(false);
 
   const handleDiscard = () => {
-    setUploadWays([]);
+    setUploadElements([]);
     onClose();
+  };
+
+  const handleUploadSuccess = async (changesetId: number) => {
+    setChangeset(changesetId);
+    setIsPostingToApi(true);
+
+    try {
+      // Post OSM element IDs to the matching API
+      if (uploads.length > 0) {
+        const osmIds = uploads.map(formatOsmId);
+        await matchingApi.postOsmElements(osmIds);
+        console.log("Successfully posted OSM elements to API");
+      }
+
+      // Post skipped Overture IDs to the matching API
+      if (skippedOvertureIds.length > 0) {
+        await matchingApi.postOvertureElements(skippedOvertureIds);
+        console.log("Successfully posted skipped Overture elements to API");
+      }
+    } catch (error) {
+      console.error("Failed to post to tracking API:", error);
+      setError(
+        "Upload succeeded but failed to update tracking database: " + error,
+      );
+    } finally {
+      setIsPostingToApi(false);
+    }
   };
 
   return (
@@ -104,14 +136,16 @@ const UploadModal: React.FC<UploadModalProps> = ({
             <Card className="rounded-lg p-4 w-full mx-4">
               <h3 className="text-lg font-semibold">Ways</h3>
               {uploads.length === 0 ? (
-                <p className="text-gray-500 text-center">No ways selected</p>
+                <p className="text-gray-500 text-center">
+                  No elements selected
+                </p>
               ) : (
                 <WayAccordion
                   ways={uploads}
                   onRemoveWay={(index) => {
                     const newUploads = [...uploads];
                     newUploads.splice(index, 1);
-                    setUploadWays(newUploads);
+                    setUploadElements(newUploads);
                   }}
                   editable={true}
                 />
@@ -121,10 +155,16 @@ const UploadModal: React.FC<UploadModalProps> = ({
 
           <UploadButton
             uploads={uploads}
-            setUploadWays={setUploadWays}
-            setChangeset={setChangeset}
+            setUploadWays={setUploadElements}
+            setChangeset={handleUploadSuccess}
             setError={setError}
+            isLoading={isPostingToApi}
           />
+          {isPostingToApi && (
+            <p className="text-sm text-gray-600 text-center">
+              Updating tracking database...
+            </p>
+          )}
         </div>
       </BaseModal>
     </>

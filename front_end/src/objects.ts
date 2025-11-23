@@ -30,6 +30,17 @@ export interface OsmElement {
   tags: Tags;
   version: number;
   user: string;
+  lat?: number;
+  lon?: number;
+}
+
+export interface OvertureMatch {
+  overture_id: string;
+  lon: number;
+  lat: number;
+  distance_m: number;
+  similarity: number;
+  overture_tags: Record<string, any>;
 }
 
 export interface OsmNode extends OsmElement {

@@ -13,7 +13,7 @@ import { Kbd } from "@heroui/kbd";
 import { Tooltip } from "@heroui/tooltip";
 import { Link } from "@heroui/link";
 import { useOsmAuthContext } from "../contexts/useOsmAuth";
-import { OsmWay } from "../objects";
+import { OsmElement } from "../objects";
 import gear from "../assets/gear.svg";
 import logo from "../assets/merge.svg";
 import menu from "../assets/menu.svg";
@@ -27,8 +27,8 @@ import LocationAutocomplete from "./LocationAutocomplete";
 import Icon from "./Icon";
 
 interface NavbarProps {
-  uploads: OsmWay[];
-  setShowFinishedModal: React.Dispatch<React.SetStateAction<boolean>>;
+  uploads: OsmElement[];
+  setShowFinishedModal: (show: boolean) => void;
   setShowHelpModal: (show: boolean) => void;
   setShowSettingsModal: (show: boolean) => void;
 }
@@ -177,10 +177,10 @@ const MainNavbar: React.FC<NavbarProps> = ({
   return (
     <>
       <Navbar maxWidth="full" position="static" className="shadow">
-        <NavbarBrand className="gap-4 flex-grow-0" as={Link} href="/overmatch/">
+        <NavbarBrand className="gap-4 grow-0" as={Link} href="/overmatch/">
           <img src={logo} alt="Logo" className="w-8 h-8" />
           <h1 className="text-xl font-bold text-black dark:text-white">
-            TIGER King
+            Overmatch
           </h1>
         </NavbarBrand>
 

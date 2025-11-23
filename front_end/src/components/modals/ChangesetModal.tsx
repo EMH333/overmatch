@@ -41,7 +41,9 @@ const ChangesetModal: React.FC<ChangesetModalProps> = ({
           color="success"
           variant="faded"
           title={"Changeset " + latestChangeset.toString()}
-          description={"Thanks for helping to tame the TIGER!"}
+          description={
+            "Thanks for helping to add information to OpenStreetMap!"
+          }
           endContent={
             <Button
               color="success"

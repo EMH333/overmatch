@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Button } from "@heroui/button";
-import { OsmWay } from "../objects";
+import { OsmElement } from "../objects";
 import WayAccordionItemContent from "./ElementAccordionItemContent";
 import { Chip } from "@heroui/chip";
 import cancel from "../assets/cancel.svg";
 import Icon from "./Icon";
 
 interface WayAccordionProps {
-  ways: OsmWay[];
+  ways: OsmElement[];
   onRemoveWay?: (index: number) => void;
   editable?: boolean;
 }
@@ -32,7 +32,7 @@ const WayAccordion: React.FC<WayAccordionProps> = ({
       onSelectionChange={(keys) => setExpandedKeys(keys as Set<string>)}
     >
       {ways.map((way, index) => {
-        const isFlagged = way.tags["fixme:tigerking"] !== undefined;
+        const isFlagged = way.tags?.["fixme:tigerking"] !== undefined;
         const isExpanded = expandedKeys.has(way.id.toString());
 
         return (
@@ -50,15 +50,17 @@ const WayAccordion: React.FC<WayAccordionProps> = ({
                   >
                     {isFlagged ? "Flagged" : "Fixed"}
                   </Chip>
-                  {way.tags.name ? (
+                  {way.tags?.name ? (
                     <span className="font-medium">{way.tags.name}</span>
                   ) : (
-                    <span className="text-danger font-medium">no name</span>
+                    <span className="text-gray-500 font-medium">
+                      {way.type}/{way.id}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center h-full">
                   <span className="text-gray-500 text-sm hidden md:inline">
-                    {way.tags.highway}
+                    {way.tags.amenity || way.tags.highway || way.type}
                   </span>
                   {editable && (
                     <Button

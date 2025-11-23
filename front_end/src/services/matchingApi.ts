@@ -1,0 +1,102 @@
+import { MatchesResponse, MatchStatus } from "../types/matching";
+
+const API_BASE_URL = "https://xju8rrh0b3.execute-api.us-east-1.amazonaws.com"; // TODO: Move to env variable
+
+export const matchingApi = {
+  /**
+   * Check if OSM elements have matches with Overture elements
+   * @param osmIds - Array of OSM element IDs in format "type/id" (e.g., ["way/123", "node/456"])
+   * @returns Promise<MatchesResponse>
+   */
+  async getMatches(osmIds: string[]): Promise<MatchesResponse> {
+    if (osmIds.length === 0) {
+      return { elements: [] };
+    }
+
+    const idsParam = osmIds.join(",");
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/matches?osm_ids=${encodeURIComponent(idsParam)}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: MatchesResponse = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching matches:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Mark OSM elements as seen/processed
+   * @param osmIds - Array of OSM element IDs in format "type/id"
+   * @returns Promise with success status
+   */
+  async postOsmElements(osmIds: string[]): Promise<{
+    success: boolean;
+    count: number;
+    timestamp: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/osm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: osmIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error posting OSM elements:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Mark Overture elements as seen/processed (skipped/not matching)
+   * @param overtureIds - Array of Overture element IDs
+   * @returns Promise with success status
+   */
+  async postOvertureElements(overtureIds: string[]): Promise<{
+    success: boolean;
+    count: number;
+    timestamp: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/overture`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: overtureIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error posting Overture elements:", error);
+      throw error;
+    }
+  },
+};

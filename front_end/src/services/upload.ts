@@ -17,7 +17,7 @@ export const uploadChanges = async (
     .ele("changeset")
     .ele("tag")
     .att("k", "created_by")
-    .att("v", "TIGER King " + version)
+    .att("v", "Overmatch " + version)
     .up()
     .ele("tag")
     .att("k", "source")

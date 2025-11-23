@@ -29,7 +29,7 @@ const ChangesetTagTable: React.FC<InfoTableProps> = ({
   const data: TableItem[] = [
     {
       key: "created_by",
-      value: "TIGER King " + packageJson.version,
+      value: "Overmatch " + packageJson.version,
     },
     {
       key: "description",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { OsmWay } from "../objects";
+import { OsmElement } from "../objects";
 import { fetchElementTags } from "../services/osmApi";
 import {
   Table,
@@ -12,7 +12,7 @@ import {
 import { Alert } from "@heroui/alert";
 
 interface WayAccordionItemContentProps {
-  way: OsmWay;
+  way: OsmElement;
   isExpanded: boolean;
 }
 
