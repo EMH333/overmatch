@@ -29,7 +29,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({
     try {
       setIsUploading(true);
       const changeset = await uploadChanges(
-        uploads as any, // TODO: Update uploadChanges to handle OsmElement
+        uploads, // TODO: Update uploadChanges to handle OsmElement
         description,
         databaseVersion,
         host,
@@ -49,7 +49,6 @@ const UploadButton: React.FC<UploadButtonProps> = ({
 
   return (
     <Button
-      variant="flat"
       color="primary"
       className="w-full hover:border-2 hover:border-primary"
       isDisabled={isButtonDisabled}
@@ -58,9 +57,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({
       onPress={() => handleUpload(uploads)}
     >
       Upload
-      <Chip color="primary" variant="flat">
-        {uploads ? uploads.length : 0}
-      </Chip>
+      <Chip color="default">{uploads ? uploads.length : 0}</Chip>
     </Button>
   );
 };

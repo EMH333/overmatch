@@ -2,25 +2,24 @@ import React, { useState } from "react";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Button } from "@heroui/button";
 import { OsmElement } from "../objects";
-import WayAccordionItemContent from "./ElementAccordionItemContent";
-import { Chip } from "@heroui/chip";
+import ElementAccordionItemContent from "./ElementAccordionItemContent";
 import cancel from "../assets/cancel.svg";
 import Icon from "./Icon";
 
-interface WayAccordionProps {
-  ways: OsmElement[];
+interface ElementAccordionProps {
+  elements: OsmElement[];
   onRemoveWay?: (index: number) => void;
   editable?: boolean;
 }
 
-const WayAccordion: React.FC<WayAccordionProps> = ({
-  ways,
+const ElementAccordion: React.FC<ElementAccordionProps> = ({
+  elements,
   onRemoveWay = () => {},
   editable = false,
 }) => {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
-  if (ways.length === 0) {
+  if (elements.length === 0) {
     return <p className="text-gray-500 text-center">No ways selected</p>;
   }
 
@@ -31,36 +30,29 @@ const WayAccordion: React.FC<WayAccordionProps> = ({
       selectedKeys={expandedKeys}
       onSelectionChange={(keys) => setExpandedKeys(keys as Set<string>)}
     >
-      {ways.map((way, index) => {
-        const isFlagged = way.tags?.["fixme:tigerking"] !== undefined;
-        const isExpanded = expandedKeys.has(way.id.toString());
+      {elements.map((element, index) => {
+        const isExpanded = expandedKeys.has(element.id.toString());
 
         return (
           <AccordionItem
-            key={way.id}
-            aria-label={`Way ${way.id}`}
+            key={element.id}
+            aria-label={`${element.type} ${element.id}`}
             title={
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center">
-                  <Chip
-                    color={isFlagged ? "warning" : "success"}
-                    variant="flat"
-                    size="sm"
-                    className="mr-3 px-2 rounded-full text-xs font-semibold"
-                  >
-                    {isFlagged ? "Flagged" : "Fixed"}
-                  </Chip>
-                  {way.tags?.name ? (
-                    <span className="font-medium">{way.tags.name}</span>
+                  {element.tags?.name ? (
+                    <span className="font-medium">{element.tags.name}</span>
                   ) : (
                     <span className="text-gray-500 font-medium">
-                      {way.type}/{way.id}
+                      {element.type}/{element.id}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center h-full">
                   <span className="text-gray-500 text-sm hidden md:inline">
-                    {way.tags.amenity || way.tags.highway || way.type}
+                    {element.tags.amenity ||
+                      element.tags.highway ||
+                      element.type}
                   </span>
                   {editable && (
                     <Button
@@ -78,7 +70,10 @@ const WayAccordion: React.FC<WayAccordionProps> = ({
               </div>
             }
           >
-            <WayAccordionItemContent way={way} isExpanded={isExpanded} />
+            <ElementAccordionItemContent
+              element={element}
+              isExpanded={isExpanded}
+            />
           </AccordionItem>
         );
       })}
@@ -86,4 +81,4 @@ const WayAccordion: React.FC<WayAccordionProps> = ({
   );
 };
 
-export default WayAccordion;
+export default ElementAccordion;

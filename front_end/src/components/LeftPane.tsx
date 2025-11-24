@@ -29,8 +29,13 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   onNext,
 }) => {
   const { relation } = useChangesetStore();
-  const { elementMatches, addToUpload, addSkippedOvertureId } =
-    useElementStore();
+  const {
+    elementMatches,
+    selectedMatchIndices,
+    addToUpload,
+    addSkippedOvertureId,
+    setSelectedMatchIndex,
+  } = useElementStore();
   const [liveTags, setLiveTags] = useState<Tags | null>(null);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [tagError, setTagError] = useState<string>("");
@@ -42,6 +47,9 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   const currentMatches = currentOsmId
     ? elementMatches.get(currentOsmId)
     : undefined;
+  const currentSelectedMatchIndex = currentOsmId
+    ? (selectedMatchIndices.get(currentOsmId) ?? 0)
+    : 0;
 
   // Fetch live OSM tags when element changes
   useEffect(() => {
@@ -72,7 +80,8 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     fetchLiveTags();
   }, [currentOsmElement]);
 
-  const handleApplyTags = (updatedTags: Tags) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleApplyTags = (updatedTags: Tags, _selectedMatchIndex: number) => {
     if (!currentOsmElement) return;
 
     // Update the element with new tags
@@ -98,6 +107,11 @@ const LeftPane: React.FC<LeftPaneProps> = ({
 
     // Move to next element
     onNext();
+  };
+
+  const handleMatchSelectionChange = (matchIndex: number) => {
+    if (!currentOsmId) return;
+    setSelectedMatchIndex(currentOsmId, matchIndex);
   };
 
   const hasElements = overpassElements && overpassElements.length > 0;
@@ -171,6 +185,8 @@ const LeftPane: React.FC<LeftPaneProps> = ({
                 <TagComparisonTable
                   osmTags={liveTags}
                   matches={currentMatches}
+                  selectedMatchIndex={currentSelectedMatchIndex}
+                  onMatchSelectionChange={handleMatchSelectionChange}
                   onApplyTags={handleApplyTags}
                   onSkipMatch={handleSkipMatch}
                 />

@@ -1,11 +1,11 @@
-import { OsmWay } from "../objects";
+import { OsmElement } from "../objects";
 import { authFetch } from "../services/auth";
 import { create } from "xmlbuilder2";
 import { osmXmlBuilder } from "../services/xml";
 import packageJson from "../../package.json";
 
 export const uploadChanges = async (
-  ways: OsmWay[],
+  elements: OsmElement[],
   description: string,
   databaseVersion: string,
   host: string,
@@ -45,7 +45,7 @@ export const uploadChanges = async (
     content: changeset.end({ headless: true }),
   });
 
-  const xmlWays = osmXmlBuilder.createChangeSet(ways, changesetId);
+  const xmlWays = osmXmlBuilder.createChangeSet(elements, changesetId);
   console.log(xmlWays);
 
   const diffResult: string = await authFetch({

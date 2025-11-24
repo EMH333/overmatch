@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   Table,
   TableHeader,
@@ -11,12 +11,15 @@ import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Card } from "@heroui/card";
 import { Radio, RadioGroup } from "@heroui/radio";
+import { Checkbox } from "@heroui/checkbox";
 import { Tags } from "../objects";
 import { MatchInfo } from "../types/matching";
 
 interface TagComparisonTableProps {
   osmTags: Tags;
   matches: MatchInfo[];
+  selectedMatchIndex: number;
+  onMatchSelectionChange: (matchIndex: number) => void;
   onApplyTags: (tags: Tags, selectedMatchIndex: number) => void;
   onSkipMatch: (matchIndex: number) => void;
 }
@@ -30,13 +33,22 @@ interface TagComparison {
   diffType: TagDiffType[];
 }
 
+// Tags that should be added by default if they don't exist in OSM
+const AUTO_ADD_KEYS = ["phone", "website", "cuisine"];
+const isAutoAddKey = (key: string): boolean => {
+  return AUTO_ADD_KEYS.includes(key) || key.startsWith("addr:");
+};
+
 const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
   osmTags,
   matches,
+  selectedMatchIndex,
+  onMatchSelectionChange,
   onApplyTags,
   onSkipMatch,
 }) => {
-  const [selectedMatchIndex, setSelectedMatchIndex] = useState(0);
+  // Track which tags are selected for application
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
 
   // Build tag comparison data
   const tagComparisons = useMemo(() => {
@@ -92,6 +104,42 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
     return comparisons;
   }, [osmTags, matches]);
 
+  // Initialize selected tags based on smart defaults
+  useEffect(() => {
+    const defaultSelected = new Set<string>();
+    const selectedMatch = matches[selectedMatchIndex];
+
+    if (!selectedMatch) return;
+
+    tagComparisons.forEach((comparison) => {
+      const overtureValue = comparison.overtureValues[selectedMatchIndex];
+      const osmValue = comparison.osmValue;
+
+      // Only consider tags that exist in Overture
+      if (overtureValue !== undefined) {
+        // If OSM doesn't have this tag and it's an auto-add key, select it
+        if (osmValue === undefined && isAutoAddKey(comparison.key)) {
+          defaultSelected.add(comparison.key);
+        }
+        // If OSM has the tag, don't select it (keep OSM value by default)
+      }
+    });
+
+    setSelectedTags(defaultSelected);
+  }, [tagComparisons, selectedMatchIndex, matches]);
+
+  const handleTagToggle = (key: string) => {
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   const getDiffColor = (
     diffType: TagDiffType,
   ): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
@@ -111,10 +159,13 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
 
   const handleApplySelected = () => {
     const selectedMatch = matches[selectedMatchIndex];
+    if (!selectedMatch) return;
+
     const newTags: Tags = { ...osmTags };
 
-    // Apply all Overture tags from selected match
-    Object.entries(selectedMatch.overture_tags).forEach(([key, value]) => {
+    // Apply only selected Overture tags from selected match
+    selectedTags.forEach((key) => {
+      const value = selectedMatch.overture_tags[key];
       if (value !== undefined && value !== null) {
         newTags[key] = String(value);
       }
@@ -122,6 +173,17 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
 
     onApplyTags(newTags, selectedMatchIndex);
   };
+
+  // Safety check for empty matches
+  if (!matches || matches.length === 0) {
+    return (
+      <Card className="p-4">
+        <p className="text-sm text-gray-600">
+          No matches available to compare.
+        </p>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -134,7 +196,7 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
           </p>
           <RadioGroup
             value={String(selectedMatchIndex)}
-            onValueChange={(value) => setSelectedMatchIndex(Number(value))}
+            onValueChange={(value) => onMatchSelectionChange(Number(value))}
           >
             {matches.map((match, index) => (
               <Radio key={index} value={String(index)}>
@@ -177,16 +239,21 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
 
         <Table aria-label="Tag comparison table" className="mb-4">
           <TableHeader>
+            <TableColumn>APPLY</TableColumn>
             <TableColumn>KEY</TableColumn>
             <TableColumn>OSM VALUE</TableColumn>
-            {matches.length > 1 &&
-              matches.map((_, index) => (
-                <TableColumn key={index}>
-                  OVERTURE {index + 1}
-                  {index === selectedMatchIndex && " (Selected)"}
-                </TableColumn>
-              ))}
-            {matches.length === 1 && <TableColumn>OVERTURE VALUE</TableColumn>}
+            {matches.length > 1 ? (
+              <>
+                {matches.map((_, index) => (
+                  <TableColumn key={index}>
+                    OVERTURE {index + 1}
+                    {index === selectedMatchIndex ? " (Selected)" : ""}
+                  </TableColumn>
+                ))}
+              </>
+            ) : (
+              <TableColumn>OVERTURE VALUE</TableColumn>
+            )}
             <TableColumn>STATUS</TableColumn>
           </TableHeader>
           <TableBody>
@@ -198,60 +265,98 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
                 <TableCell>-</TableCell>
               </TableRow>
             ) : (
-              tagComparisons.map((comparison) => (
-                <TableRow key={comparison.key}>
-                  <TableCell className="font-mono text-sm">
-                    {comparison.key}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {comparison.osmValue || (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  {matches.length > 1 &&
-                    comparison.overtureValues.map((value, index) => (
-                      <TableCell
-                        key={index}
-                        className={`font-mono text-sm ${index === selectedMatchIndex ? "font-bold" : ""}`}
-                      >
-                        {value || <span className="text-gray-400">-</span>}
-                      </TableCell>
-                    ))}
-                  {matches.length === 1 && (
-                    <TableCell className="font-mono text-sm">
-                      {comparison.overtureValues[0] || (
+              tagComparisons.map((comparison) => {
+                const overtureValue =
+                  comparison.overtureValues[selectedMatchIndex];
+                const canApply = overtureValue !== undefined;
+
+                return (
+                  <TableRow key={comparison.key}>
+                    <TableCell>
+                      {canApply ? (
+                        <Checkbox
+                          isSelected={selectedTags.has(comparison.key)}
+                          onValueChange={() => handleTagToggle(comparison.key)}
+                          size="sm"
+                        />
+                      ) : (
                         <span className="text-gray-400">-</span>
                       )}
                     </TableCell>
-                  )}
-                  <TableCell>
-                    <Chip
-                      size="sm"
-                      color={getDiffColor(
-                        comparison.diffType[selectedMatchIndex],
+                    <TableCell className="font-mono text-sm">
+                      {comparison.key}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {comparison.osmValue || (
+                        <span className="text-gray-400">-</span>
                       )}
-                      variant="flat"
-                    >
-                      {comparison.diffType[selectedMatchIndex]}
-                    </Chip>
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+                    {matches.length > 1 ? (
+                      <>
+                        {comparison.overtureValues.map((value, index) => (
+                          <TableCell
+                            key={index}
+                            className={`font-mono text-sm ${index === selectedMatchIndex ? "font-bold" : ""}`}
+                          >
+                            {value || <span className="text-gray-400">-</span>}
+                          </TableCell>
+                        ))}
+                      </>
+                    ) : (
+                      <TableCell className="font-mono text-sm">
+                        {comparison.overtureValues[0] || (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      {comparison.diffType[selectedMatchIndex] ? (
+                        <Chip
+                          size="sm"
+                          color={getDiffColor(
+                            comparison.diffType[selectedMatchIndex],
+                          )}
+                          variant="flat"
+                        >
+                          {comparison.diffType[selectedMatchIndex]}
+                        </Chip>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
 
+        <div className="text-sm text-gray-600 mb-4">
+          <p>
+            <strong>Default behavior:</strong> Automatically adds{" "}
+            <code className="bg-gray-100 px-1 rounded">phone</code>,{" "}
+            <code className="bg-gray-100 px-1 rounded">website</code>,{" "}
+            <code className="bg-gray-100 px-1 rounded">cuisine</code>, and{" "}
+            <code className="bg-gray-100 px-1 rounded">addr:*</code> tags from
+            Overture when missing in OSM. Existing OSM values are preserved by
+            default.
+          </p>
+        </div>
+
         <div className="flex gap-2 justify-end">
           <Button
             color="danger"
-            variant="flat"
             onPress={() => onSkipMatch(selectedMatchIndex)}
           >
             Skip This Match
           </Button>
-          <Button color="primary" onPress={handleApplySelected}>
-            Apply Overture Tags{" "}
-            {matches.length > 1 && `(Match ${selectedMatchIndex + 1})`}
+          <Button
+            color="primary"
+            onPress={handleApplySelected}
+            isDisabled={selectedTags.size === 0}
+          >
+            Apply Selected Tags ({selectedTags.size})
+            {matches.length > 1 && ` from Match ${selectedMatchIndex + 1}`}
           </Button>
         </div>
       </Card>

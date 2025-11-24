@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -16,6 +16,7 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
 
     // We expect exactly 2 coordinates for the two points
     if (points.length !== 2) {
+      console.log(points);
       console.warn("Map expects exactly 2 coordinates for two points");
       return;
     }
@@ -228,42 +229,6 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
       map.current?.remove();
     };
   }, [points, zoom]);
-
-  const [mapCenter, setMapCenter] = useState<{
-    lng: number;
-    lat: number;
-    zoom: number;
-  }>({
-    lng: -98.66,
-    lat: 40.5,
-    zoom: zoom,
-  });
-
-  useEffect(() => {
-    if (map.current) {
-      // Set initial center when map is first created
-      const initialCenter = map.current.getCenter();
-      const initialZoom = map.current.getZoom();
-      setMapCenter({
-        lng: initialCenter.lng,
-        lat: initialCenter.lat,
-        zoom: initialZoom,
-      });
-
-      // Add event listener for subsequent moves
-      map.current.on("moveend", () => {
-        const center = map.current?.getCenter();
-        const currentZoom = map.current?.getZoom();
-        if (center) {
-          setMapCenter({
-            lng: center.lng,
-            lat: center.lat,
-            zoom: currentZoom || 5,
-          });
-        }
-      });
-    }
-  }, [points]);
 
   return (
     <div className="relative w-full h-full">

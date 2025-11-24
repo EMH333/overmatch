@@ -35,6 +35,8 @@ const App: React.FC = () => {
     currentElement,
     uploadElements,
     skippedOvertureIds,
+    elementMatches,
+    selectedMatchIndices,
     setOverpassElements,
     setCurrentElement,
     setUploadElements,
@@ -154,15 +156,39 @@ const App: React.FC = () => {
     }
   }, [currentElement, overpassElements.length, setCurrentElement]);
 
-  // Get coordinates for current element to show on map
-  const currentElementCoordinates = useMemo(() => {
+  // Get coordinates for current element (OSM) and selected Overture match to show on map
+  const mapCoordinates = useMemo((): [number, number][] => {
     if (overpassElements.length === 0 || !overpassElements[currentElement]) {
       return [];
     }
 
-    const coords = getElementCoordinates(overpassElements[currentElement]);
-    return coords ? [coords] : [];
-  }, [overpassElements, currentElement]);
+    const currentOsmElement = overpassElements[currentElement];
+    const osmCoords = getElementCoordinates(currentOsmElement);
+
+    if (!osmCoords) {
+      console.log("No OSM coordinates found for element");
+      return [];
+    }
+
+    // Get the current element's OSM ID and matches
+    const osmId = formatOsmId(currentOsmElement);
+    const matches = elementMatches.get(osmId);
+    const selectedMatchIndex = selectedMatchIndices.get(osmId) ?? 0;
+
+    // Get the selected Overture match coordinates
+    if (!matches || matches.length === 0 || !matches[selectedMatchIndex]) {
+      // If no match available, just show OSM coordinate
+      return [[osmCoords.lon, osmCoords.lat] as [number, number]];
+    }
+
+    const selectedMatch = matches[selectedMatchIndex];
+
+    // Return both: OSM first (green), then Overture (red)
+    return [
+      [osmCoords.lon, osmCoords.lat] as [number, number],
+      [selectedMatch.lon, selectedMatch.lat] as [number, number],
+    ];
+  }, [overpassElements, currentElement, elementMatches, selectedMatchIndices]);
 
   return (
     <div className="flex flex-col md:h-screen">
@@ -179,7 +205,7 @@ const App: React.FC = () => {
         show={showFinishedModal && !latestChangeset}
         ways={uploadElements.length}
         onClose={() => setShowFinishedModal(false)}
-        uploads={uploadElements as any}
+        uploads={uploadElements}
         setUploadElements={setUploadElements}
         setChangeset={setLatestChangeset}
         setError={setError}
@@ -205,10 +231,7 @@ const App: React.FC = () => {
         />
 
         <div className="w-full flex md:flex-1 h-[600px] md:h-auto p-4">
-          <Map
-            points={currentElementCoordinates.map((c) => [c.lon, c.lat])}
-            zoom={16}
-          />
+          <Map points={mapCoordinates} zoom={16} />
         </div>
       </div>
     </div>

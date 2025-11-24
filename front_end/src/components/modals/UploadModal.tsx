@@ -3,7 +3,7 @@ import BaseModal from "./BaseModal";
 import { Link } from "@heroui/link";
 import { Card } from "@heroui/card";
 import UploadButton from "../UploadButton";
-import WayAccordion from "../ElementAccordion";
+import ElementAccordion from "../ElementAccordion";
 import CountBadge from "../ReviewCountBadge";
 import { OsmElement } from "../../objects";
 import ChangesetTagTable from "../ChangesetTags";
@@ -98,13 +98,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
           {
             label: "Cancel",
             color: "default",
-            variant: "flat",
             onClick: onClose,
           },
           {
             label: "Discard",
             color: "danger",
-            variant: "flat",
             onClick: () => {
               setIsConfirmModalOpen(true);
             },
@@ -140,8 +138,8 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   No elements selected
                 </p>
               ) : (
-                <WayAccordion
-                  ways={uploads}
+                <ElementAccordion
+                  elements={uploads}
                   onRemoveWay={(index) => {
                     const newUploads = [...uploads];
                     newUploads.splice(index, 1);

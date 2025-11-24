@@ -1,4 +1,4 @@
-import { MatchesResponse, MatchStatus } from "../types/matching";
+import { MatchesResponse } from "../types/matching";
 
 const API_BASE_URL = "https://xju8rrh0b3.execute-api.us-east-1.amazonaws.com"; // TODO: Move to env variable
 
@@ -17,12 +17,9 @@ export const matchingApi = {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/matches?osm_ids=${encodeURIComponent(idsParam)}`,
+        `${API_BASE_URL}/matches?osm_ids=${idsParam}`,
         {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
         },
       );
 

@@ -9,17 +9,15 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { Alert } from "@heroui/alert";
 
-interface WayAccordionItemContentProps {
-  way: OsmElement;
+interface ElementAccordionItemContentProps {
+  element: OsmElement;
   isExpanded: boolean;
 }
 
-const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
-  way,
-  isExpanded,
-}) => {
+const ElementAccordionItemContent: React.FC<
+  ElementAccordionItemContentProps
+> = ({ element, isExpanded }) => {
   const [fetchedTags, setFetchedTags] = useState<Record<string, string> | null>(
     null,
   );
@@ -32,7 +30,10 @@ const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
       if (isExpanded && !fetchedTags) {
         try {
           setIsLoading(true);
-          const result = await fetchElementTags(way.id.toString(), "way");
+          const result = await fetchElementTags(
+            element.id.toString(),
+            element.type,
+          );
           setFetchedTags(result.tags);
         } catch (err) {
           setError(err instanceof Error ? err.message : "Failed to fetch tags");
@@ -43,7 +44,7 @@ const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
     };
 
     fetchTags();
-  }, [isExpanded, way.id, fetchedTags]);
+  }, [isExpanded, element.id, fetchedTags]);
 
   if (isLoading) {
     return (
@@ -64,7 +65,7 @@ const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
   // Compare tags
   const compareTagChanges = () => {
     const oldTags = fetchedTags || {}; // Server tags (old version)
-    const newTags = way.tags; // Local tags (new version)
+    const newTags = element.tags; // Local tags (new version)
 
     // Collect all unique keys
     const allKeys = new Set([...Object.keys(oldTags), ...Object.keys(newTags)]);
@@ -91,7 +92,6 @@ const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
   };
 
   const tagChanges = compareTagChanges();
-  const isFlagged = way.tags?.["fixme:tigerking"] !== undefined;
 
   const statusClassMap = {
     unchanged: "hover:bg-gray-100 dark:hover:bg-gray-800",
@@ -104,14 +104,6 @@ const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
 
   return (
     <div className="space-y-4">
-      {isFlagged && way.tags?.["fixme:tigerking"] && (
-        <Alert
-          color="warning"
-          title={"Flagging reason:"}
-          description={way.tags["fixme:tigerking"]}
-        />
-      )}
-
       <Table aria-label="Tag changes" isCompact hideHeader>
         <TableHeader>
           <TableColumn>Tag</TableColumn>
@@ -147,4 +139,4 @@ const WayAccordionItemContent: React.FC<WayAccordionItemContentProps> = ({
   );
 };
 
-export default WayAccordionItemContent;
+export default ElementAccordionItemContent;

@@ -9,12 +9,14 @@ interface ElementStore {
   uploadElements: OsmElement[];
   skippedOvertureIds: string[];
   elementMatches: Map<string, MatchInfo[]>;
+  selectedMatchIndices: Map<string, number>;
   setOverpassElements: (ways: OsmElement[]) => void;
   setCurrentElement: (index: number) => void;
   setUploadElements: (ways: OsmElement[]) => void;
   addToUpload: (way: OsmElement) => void;
   addSkippedOvertureId: (id: string) => void;
   setElementMatches: (osmId: string, matches: MatchInfo[]) => void;
+  setSelectedMatchIndex: (osmId: string, index: number) => void;
   resetElements: () => void;
 }
 
@@ -26,6 +28,7 @@ export const useElementStore = create<ElementStore>()(
       uploadElements: [],
       skippedOvertureIds: [],
       elementMatches: new Map(),
+      selectedMatchIndices: new Map(),
       setOverpassElements: (ways) => set({ overpassElements: ways }),
       setCurrentElement: (index) => set({ currentElement: index }),
       setUploadElements: (ways) => set({ uploadElements: ways }),
@@ -41,7 +44,21 @@ export const useElementStore = create<ElementStore>()(
         set((state) => {
           const newMap = new Map(state.elementMatches);
           newMap.set(osmId, matches);
-          return { elementMatches: newMap };
+          // Initialize selected match index to 0 for this element
+          const newIndicesMap = new Map(state.selectedMatchIndices);
+          if (!newIndicesMap.has(osmId)) {
+            newIndicesMap.set(osmId, 0);
+          }
+          return {
+            elementMatches: newMap,
+            selectedMatchIndices: newIndicesMap,
+          };
+        }),
+      setSelectedMatchIndex: (osmId, index) =>
+        set((state) => {
+          const newMap = new Map(state.selectedMatchIndices);
+          newMap.set(osmId, index);
+          return { selectedMatchIndices: newMap };
         }),
       resetElements: () =>
         set({

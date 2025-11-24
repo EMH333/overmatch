@@ -8,14 +8,14 @@ const generateOverpassQuery = (): string => {
   // Base query that includes all highway ways with tiger:reviewed=no
   const baseQuery = `
     (
-  nwr[amenity=restaurant](area.hood);
-  nwr[amenity=bar](area.hood);
-  nwr[amenity=cafe](area.hood);
-  nwr[amenity=fast_food](area.hood);
-  nwr[amenity=pub](area.hood);
+  nwr[amenity=restaurant][name](area.hood);
+  nwr[amenity=bar][name](area.hood);
+  nwr[amenity=cafe][name](area.hood);
+  nwr[amenity=fast_food][name](area.hood);
+  nwr[amenity=pub][name](area.hood);
   );
 
-  out ids;
+  out ids center;
 `;
 
   return baseQuery;

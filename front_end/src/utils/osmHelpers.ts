@@ -49,25 +49,10 @@ export function getElementCoordinates(
   ) {
     return { lat: element.lat, lon: element.lon };
   }
-  if (
-    "geometry" in element &&
-    "geometry" in element &&
-    Array.isArray((element as any).geometry)
-  ) {
-    // Return center of geometry
-    const coords = (element as any).geometry;
-    if (coords.length > 0) {
-      const centerIndex = Math.floor(coords.length / 2);
-      return coords[centerIndex];
-    }
-  }
-  if ("bounds" in element && element.bounds) {
-    // Return center of bounds
-    const bounds = (element as any).bounds;
-    return {
-      lat: (bounds.minlat + bounds.maxlat) / 2,
-      lon: (bounds.minlon + bounds.maxlon) / 2,
-    };
+  if ("center" in element && element.center) {
+    // Return center of ways and relations
+    const coords = (element as any).center;
+    return { lat: coords.lat, lon: coords.lon };
   }
   return null;
 }
