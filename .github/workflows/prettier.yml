@@ -2,15 +2,15 @@ name: Prettier Check
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
-      - "src/**/*.ts"
-      - "src/**/*.tsx"
-      - "src/**/*.js"
-      - "src/**/*.jsx"
-      - ".github/workflows/prettier-check.yml"
+      - "front_end/src/**/*.ts"
+      - "front_end/src/**/*.tsx"
+      - "front_end/src/**/*.js"
+      - "front_end/src/**/*.jsx"
+      - ".github/workflows/prettier.yml"
   workflow_dispatch:
 
 jobs:
@@ -25,9 +25,12 @@ jobs:
         with:
           node-version: "21"
           cache: "npm"
+          cache-dependency-path: "front_end/package-lock.json"
 
       - name: Install dependencies
+        working-directory: front_end
         run: npm ci
 
       - name: Check formatting with Prettier
+        working-directory: front_end
         run: npx prettier --check "src/**/*.{ts,tsx,js,jsx}"

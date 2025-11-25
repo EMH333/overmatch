@@ -7,7 +7,7 @@ import RelationHeading from "./RelationHeading";
 import LocationAutocomplete from "./LocationAutocomplete";
 import NoRelationPlaceholder from "./NoRelationPlaceholder";
 import TagComparisonTable from "./TagComparisonTable";
-import { OsmElement, OsmRelation, OsmWay, Tags } from "../objects";
+import { OsmElement, OsmRelation, OsmWay, OsmMember, Tags } from "../objects";
 import { useChangesetStore } from "../stores/useChangesetStore";
 import { useElementStore } from "../stores/useElementStore";
 import { fetchElementTags } from "../services/osmApi";
@@ -29,13 +29,8 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   onNext,
 }) => {
   const { relation } = useChangesetStore();
-  const {
-    elementMatches,
-    selectedMatchIndices,
-    addToUpload,
-    addSkippedOsmId,
-    setSelectedMatchIndex,
-  } = useElementStore();
+  const { elementMatches, selectedMatchIndices, addToUpload, addSkippedOsmId } =
+    useElementStore();
   const [liveTags, setLiveTags] = useState<Tags | null>(null);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [tagError, setTagError] = useState<string>("");
@@ -66,10 +61,14 @@ const LeftPane: React.FC<LeftPaneProps> = ({
           currentOsmElement.type,
         );
         currentOsmElement.version = elementData.version;
-        if (currentOsmElement.type === "way") {
+        if (currentOsmElement.type === "way" && elementData.nodes) {
           (currentOsmElement as OsmWay).nodes = elementData.nodes;
-        } else if (currentOsmElement.type === "relation") {
-          (currentOsmElement as OsmRelation).members = elementData.members;
+        } else if (
+          currentOsmElement.type === "relation" &&
+          elementData.members
+        ) {
+          (currentOsmElement as OsmRelation).members =
+            elementData.members as OsmMember[];
         }
         setLiveTags(elementData.tags);
       } catch (error) {
@@ -124,11 +123,6 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     onNext();
   };
 
-  const handleMatchSelectionChange = (matchIndex: number) => {
-    if (!currentOsmId) return;
-    setSelectedMatchIndex(currentOsmId, matchIndex);
-  };
-
   const hasElements = overpassElements && overpassElements.length > 0;
 
   return (
@@ -178,8 +172,6 @@ const LeftPane: React.FC<LeftPaneProps> = ({
                 <TagComparisonTable
                   osmTags={liveTags}
                   matches={currentMatches}
-                  selectedMatchIndex={currentSelectedMatchIndex}
-                  onMatchSelectionChange={handleMatchSelectionChange}
                   onApplyTags={handleApplyTags}
                   onNoMatch={handleNoMatch}
                   onSkip={handleSkip}
