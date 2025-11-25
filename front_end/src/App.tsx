@@ -85,25 +85,63 @@ const App: React.FC = () => {
         const osmIds = allElements.map(formatOsmId);
         const matchesResponse = await matchingApi.getMatches(osmIds);
 
-        // Step 3: Filter elements based on the equation:
-        // (OSM_objects_via_Overpass - OSM_not_matched_on_server - (OSM_already_uploaded + Overture_skipped))
+        // Step 3: Check which OSM elements have already been seen
+        const osmIdsWithMatches = matchesResponse.elements
+          .filter((m) => m.has_match)
+          .map((m) => m.osm_id);
+        const seenOsmResponse =
+          await matchingApi.getOsmElements(osmIdsWithMatches);
 
-        // Create sets for efficient lookup
+        // Step 4: Collect all Overture IDs from matches and check which have been skipped
+        const allOvertureIds = new Set<string>();
+        matchesResponse.elements.forEach((matchStatus) => {
+          if (matchStatus.has_match) {
+            matchStatus.matches.forEach((match) => {
+              allOvertureIds.add(match.overture_id);
+            });
+          }
+        });
+        const seenOvertureResponse = await matchingApi.getOvertureElements(
+          Array.from(allOvertureIds),
+        );
+
+        // Step 5: Create sets for efficient lookup
         const uploadedOsmIds = new Set(uploadElements.map(formatOsmId));
+        const seenOsmIds = new Set(
+          seenOsmResponse.elements.filter((e) => e.exists).map((e) => e.id),
+        );
+        const skippedOvertureIds = new Set(
+          seenOvertureResponse.elements
+            .filter((e) => e.exists)
+            .map((e) => e.id),
+        );
 
-        // Filter matched elements
+        // Step 6: Filter elements based on the equation:
+        // (OSM_objects_via_Overpass - OSM_not_matched_on_server - (OSM_already_seen + OSM_already_uploaded + all_matches_skipped))
         const matchedElements = allElements.filter((element) => {
           const osmId = formatOsmId(element);
           const matchStatus = matchesResponse.elements.find(
             (m: MatchStatus) => m.osm_id === osmId,
           );
 
-          // Keep if: has match, not uploaded, and no skipped Overture IDs in its matches
+          // Filter out if no match
           if (!matchStatus || !matchStatus.has_match) return false;
+
+          // Filter out if already uploaded
           if (uploadedOsmIds.has(osmId)) return false;
 
-          // Store match info for this element
-          setElementMatches(osmId, matchStatus.matches);
+          // Filter out if OSM element already seen
+          if (seenOsmIds.has(osmId)) return false;
+
+          // Filter out if all Overture matches have been skipped
+          const unskippedMatches = matchStatus.matches.filter(
+            (match) => !skippedOvertureIds.has(match.overture_id),
+          );
+
+          if (unskippedMatches.length === 0) return false;
+
+          // Store only unskipped match info for this element
+          setElementMatches(osmId, unskippedMatches);
 
           return true;
         });

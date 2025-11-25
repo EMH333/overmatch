@@ -1,4 +1,4 @@
-import { MatchesResponse } from "../types/matching";
+import { MatchesResponse, ElementsResponse } from "../types/matching";
 
 const API_BASE_URL = "https://xju8rrh0b3.execute-api.us-east-1.amazonaws.com"; // TODO: Move to env variable
 
@@ -36,6 +36,35 @@ export const matchingApi = {
   },
 
   /**
+   * Check if OSM elements exist in the database
+   * @param osmIds - Array of OSM element IDs in format "type/id" (e.g., ["way/123", "node/456"])
+   * @returns Promise<ElementsResponse>
+   */
+  async getOsmElements(osmIds: string[]): Promise<ElementsResponse> {
+    if (osmIds.length === 0) {
+      return { elements: [] };
+    }
+
+    const idsParam = osmIds.join(",");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/osm?ids=${idsParam}`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: ElementsResponse = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching OSM elements:", error);
+      throw error;
+    }
+  },
+
+  /**
    * Mark OSM elements as seen/processed
    * @param osmIds - Array of OSM element IDs in format "type/id"
    * @returns Promise with success status
@@ -65,6 +94,35 @@ export const matchingApi = {
       return data;
     } catch (error) {
       console.error("Error posting OSM elements:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Check if Overture elements exist in the database
+   * @param overtureIds - Array of Overture element IDs
+   * @returns Promise<ElementsResponse>
+   */
+  async getOvertureElements(overtureIds: string[]): Promise<ElementsResponse> {
+    if (overtureIds.length === 0) {
+      return { elements: [] };
+    }
+
+    const idsParam = overtureIds.join(",");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/overture?ids=${idsParam}`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: ElementsResponse = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching Overture elements:", error);
       throw error;
     }
   },
