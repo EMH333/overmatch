@@ -6,7 +6,8 @@ and to mark elements as seen in the database.
 """
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from datetime import datetime
 from .db import DynamoDBManager
 import os
@@ -15,6 +16,15 @@ app = FastAPI(
     title="Overmatch Element Tracking API",
     description="Track which OSM and Overture elements have been processed",
     version="1.0.0",
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize DynamoDB managers
@@ -34,62 +44,133 @@ matches_db = DynamoDBManager(
 )
 
 
-class ElementRequest(BaseModel):
-    """Request model for element IDs"""
+class HealthResponse(BaseModel):
+    """Response model for health check"""
 
-    ids: list[str]
+    status: str = Field(examples=["healthy"])
+    service: str = Field(examples=["Overmatch Element Tracking API"])
+    version: str = Field(examples=["1.0.0"])
+
+
+class OsmElementRequest(BaseModel):
+    """Request model for OSM element IDs"""
+
+    ids: list[str] = Field(examples=[["node/123", "way/456", "relation/789"]])
+
+
+class OvertureElementRequest(BaseModel):
+    """Request model for Overture element IDs"""
+
+    ids: list[str] = Field(
+        examples=[
+            [
+                "3a651d6c-4684-4250-880c-c34be754590d",
+                "21858aad-48ca-4d20-91a0-1ad020d2b963",
+                "1bbd2673-7dd4-49da-9c4a-892392ac680f",
+            ]
+        ]
+    )
 
 
 class ElementStatus(BaseModel):
     """Response model for element status"""
 
-    id: str
-    exists: bool
-    first_seen: str | None = None
-    last_seen: str | None = None
+    id: str = Field(examples=["way/48039595"])
+    exists: bool = Field(examples=[True])
+    first_seen: str | None = Field(default=None, examples=["2024-01-15T10:30:00.000Z"])
+    last_seen: str | None = Field(default=None, examples=["2024-01-15T14:45:00.000Z"])
 
 
 class ElementsResponse(BaseModel):
     """Response model for multiple elements"""
 
-    elements: list[ElementStatus]
+    elements: list[ElementStatus] = Field(
+        examples=[
+            [
+                {
+                    "id": "way/48039595",
+                    "exists": True,
+                    "first_seen": "2024-01-15T10:30:00.000Z",
+                    "last_seen": "2024-01-15T14:45:00.000Z",
+                }
+            ]
+        ]
+    )
 
 
 class PostResponse(BaseModel):
     """Response model for POST requests"""
 
-    success: bool
-    count: int
-    timestamp: str
+    success: bool = Field(examples=[True])
+    count: int = Field(examples=[3])
+    timestamp: str = Field(examples=["2024-01-15T14:45:00.000Z"])
 
 
 class MatchInfo(BaseModel):
     """Match information between OSM and Overture elements"""
 
-    osm_id: str
-    overture_id: str
-    lon: float
-    lat: float
-    distance_m: float
-    similarity: float
-    overture_tags: dict
+    osm_id: str = Field(examples=["way/48039595"])
+    overture_id: str = Field(examples=["a60fa4ac-5b72-4557-8e64-ad4282852745"])
+    lon: float = Field(examples=[-122.4194])
+    lat: float = Field(examples=[37.7749])
+    distance_m: float = Field(examples=[2.5])
+    similarity: float = Field(examples=[0.95])
+    overture_tags: dict = Field(examples=[{"name": "Central Park", "amenity": "park"}])
 
 
 class MatchStatus(BaseModel):
     """Response model for match status of a single OSM element"""
 
-    osm_id: str
-    has_match: bool
-    matches: list[MatchInfo] = []
+    osm_id: str = Field(examples=["way/48039595"])
+    has_match: bool = Field(examples=[True])
+    matches: list[MatchInfo] = Field(
+        default=[],
+        examples=[
+            [
+                {
+                    "osm_id": "way/48039595",
+                    "overture_id": "a60fa4ac-5b72-4557-8e64-ad4282852745",
+                    "lon": -122.4194,
+                    "lat": 37.7749,
+                    "distance_m": 22.5,
+                    "similarity": 0.95,
+                    "overture_tags": {"name": "Central Park Cafe", "amenity": "cafe"},
+                }
+            ]
+        ],
+    )
 
 
 class MatchesResponse(BaseModel):
     """Response model for matches query"""
 
-    elements: list[MatchStatus]
+    elements: list[MatchStatus] = Field(
+        examples=[
+            [
+                {
+                    "osm_id": "way/48039595",
+                    "has_match": True,
+                    "matches": [
+                        {
+                            "osm_id": "way/48039595",
+                            "overture_id": "a60fa4ac-5b72-4557-8e64-ad4282852745",
+                            "lon": -122.4194,
+                            "lat": 37.7749,
+                            "distance_m": 22.5,
+                            "similarity": 0.95,
+                            "overture_tags": {
+                                "name": "Central Park Cafe",
+                                "amenity": "cafe",
+                            },
+                        }
+                    ],
+                }
+            ]
+        ]
+    )
 
 
-@app.get("/")
+@app.get("/", response_model=HealthResponse)
 async def root():
     """Health check endpoint"""
     return {
@@ -145,7 +226,7 @@ async def get_osm_elements(ids: str):
 
 
 @app.post("/osm", response_model=PostResponse)
-async def post_osm_elements(request: ElementRequest):
+async def post_osm_elements(request: OsmElementRequest):
     """
     Mark OSM elements as seen in the database.
 
@@ -182,7 +263,7 @@ async def get_overture_elements(ids: str):
         ElementsResponse with status for each ID
 
     Example:
-        GET /overture?ids=id1,id2,id3
+        GET /overture?ids=3a651d6c-4684-4250-880c-c34be754590d,21858aad-48ca-4d20-91a0-1ad020d2b963
     """
     if not ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
@@ -216,7 +297,7 @@ async def get_overture_elements(ids: str):
 
 
 @app.post("/overture", response_model=PostResponse)
-async def post_overture_elements(request: ElementRequest):
+async def post_overture_elements(request: OvertureElementRequest):
     """
     Mark Overture elements as seen in the database.
 
@@ -228,7 +309,7 @@ async def post_overture_elements(request: ElementRequest):
 
     Example:
         POST /overture
-        {"ids": ["id1", "id2", "id3"]}
+        {"ids": ["3a651d6c-4684-4250-880c-c34be754590d", "21858aad-48ca-4d20-91a0-1ad020d2b963"]}
     """
     if not request.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
