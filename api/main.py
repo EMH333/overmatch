@@ -180,27 +180,25 @@ async def root():
     }
 
 
-@app.get("/osm", response_model=ElementsResponse)
-async def get_osm_elements(ids: str):
+@app.post("/osm/check", response_model=ElementsResponse)
+async def check_osm_elements(request: OsmElementRequest):
     """
     Check if OSM elements exist in the database.
 
     Args:
-        ids: Comma-separated list of OSM element IDs
+        request: OsmElementRequest with list of OSM element IDs
 
     Returns:
         ElementsResponse with status for each ID
 
     Example:
-        GET /osm?ids=node/123,way/456,relation/789
+        POST /osm/check
+        {"ids": ["node/123", "way/456", "relation/789"]}
     """
-    if not ids:
+    if not request.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
 
-    id_list = [id.strip() for id in ids.split(",") if id.strip()]
-
-    if not id_list:
-        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    id_list = request.ids
 
     results = []
     current_time = datetime.utcnow().isoformat() + "Z"
@@ -225,19 +223,19 @@ async def get_osm_elements(ids: str):
     return ElementsResponse(elements=results)
 
 
-@app.post("/osm", response_model=PostResponse)
-async def post_osm_elements(request: OsmElementRequest):
+@app.post("/osm/mark", response_model=PostResponse)
+async def mark_osm_elements(request: OsmElementRequest):
     """
     Mark OSM elements as seen in the database.
 
     Args:
-        request: ElementRequest with list of OSM element IDs
+        request: OsmElementRequest with list of OSM element IDs
 
     Returns:
         PostResponse with confirmation
 
     Example:
-        POST /osm
+        POST /osm/mark
         {"ids": ["node/123", "way/456", "relation/789"]}
     """
     if not request.ids:
@@ -251,27 +249,25 @@ async def post_osm_elements(request: OsmElementRequest):
     return PostResponse(success=True, count=len(request.ids), timestamp=current_time)
 
 
-@app.get("/overture", response_model=ElementsResponse)
-async def get_overture_elements(ids: str):
+@app.post("/overture/check", response_model=ElementsResponse)
+async def check_overture_elements(request: OvertureElementRequest):
     """
     Check if Overture elements exist in the database.
 
     Args:
-        ids: Comma-separated list of Overture element IDs
+        request: OvertureElementRequest with list of Overture element IDs
 
     Returns:
         ElementsResponse with status for each ID
 
     Example:
-        GET /overture?ids=3a651d6c-4684-4250-880c-c34be754590d,21858aad-48ca-4d20-91a0-1ad020d2b963
+        POST /overture/check
+        {"ids": ["3a651d6c-4684-4250-880c-c34be754590d", "21858aad-48ca-4d20-91a0-1ad020d2b963"]}
     """
-    if not ids:
+    if not request.ids:
         raise HTTPException(status_code=400, detail="No IDs provided")
 
-    id_list = [id.strip() for id in ids.split(",") if id.strip()]
-
-    if not id_list:
-        raise HTTPException(status_code=400, detail="No valid IDs provided")
+    id_list = request.ids
 
     results = []
     current_time = datetime.utcnow().isoformat() + "Z"
@@ -296,19 +292,19 @@ async def get_overture_elements(ids: str):
     return ElementsResponse(elements=results)
 
 
-@app.post("/overture", response_model=PostResponse)
-async def post_overture_elements(request: OvertureElementRequest):
+@app.post("/overture/mark", response_model=PostResponse)
+async def mark_overture_elements(request: OvertureElementRequest):
     """
     Mark Overture elements as seen in the database.
 
     Args:
-        request: ElementRequest with list of Overture element IDs
+        request: OvertureElementRequest with list of Overture element IDs
 
     Returns:
         PostResponse with confirmation
 
     Example:
-        POST /overture
+        POST /overture/mark
         {"ids": ["3a651d6c-4684-4250-880c-c34be754590d", "21858aad-48ca-4d20-91a0-1ad020d2b963"]}
     """
     if not request.ids:
@@ -322,27 +318,25 @@ async def post_overture_elements(request: OvertureElementRequest):
     return PostResponse(success=True, count=len(request.ids), timestamp=current_time)
 
 
-@app.get("/matches", response_model=MatchesResponse)
-async def get_matches(osm_ids: str):
+@app.post("/matches/check", response_model=MatchesResponse)
+async def check_matches(request: OsmElementRequest):
     """
     Check if OSM elements have matches with Overture elements.
 
     Args:
-        osm_ids: Comma-separated list of OSM element IDs (e.g., "way/123,node/456")
+        request: OsmElementRequest with list of OSM element IDs
 
     Returns:
         MatchesResponse with match details for each OSM ID
 
     Example:
-        GET /matches?osm_ids=way/48039595,way/48039713,node/123456
+        POST /matches/check
+        {"ids": ["way/48039595", "way/48039713", "node/123456"]}
     """
-    if not osm_ids:
+    if not request.ids:
         raise HTTPException(status_code=400, detail="No OSM IDs provided")
 
-    id_list = [id.strip() for id in osm_ids.split(",") if id.strip()]
-
-    if not id_list:
-        raise HTTPException(status_code=400, detail="No valid OSM IDs provided")
+    id_list = request.ids
 
     results = []
 

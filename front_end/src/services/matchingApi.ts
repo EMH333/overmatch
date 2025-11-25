@@ -13,15 +13,14 @@ export const matchingApi = {
       return { elements: [] };
     }
 
-    const idsParam = osmIds.join(",");
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/matches?osm_ids=${idsParam}`,
-        {
-          method: "GET",
+      const response = await fetch(`${API_BASE_URL}/matches/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ ids: osmIds }),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -45,11 +44,13 @@ export const matchingApi = {
       return { elements: [] };
     }
 
-    const idsParam = osmIds.join(",");
-
     try {
-      const response = await fetch(`${API_BASE_URL}/osm?ids=${idsParam}`, {
-        method: "GET",
+      const response = await fetch(`${API_BASE_URL}/osm/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: osmIds }),
       });
 
       if (!response.ok) {
@@ -78,7 +79,7 @@ export const matchingApi = {
       const payload = { ids: osmIds };
       console.log("Sending to /osm endpoint:", payload);
 
-      const response = await fetch(`${API_BASE_URL}/osm`, {
+      const response = await fetch(`${API_BASE_URL}/osm/mark`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -108,11 +109,13 @@ export const matchingApi = {
       return { elements: [] };
     }
 
-    const idsParam = overtureIds.join(",");
-
     try {
-      const response = await fetch(`${API_BASE_URL}/overture?ids=${idsParam}`, {
-        method: "GET",
+      const response = await fetch(`${API_BASE_URL}/overture/check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: overtureIds }),
       });
 
       if (!response.ok) {
@@ -138,7 +141,7 @@ export const matchingApi = {
     timestamp: string;
   }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/overture`, {
+      const response = await fetch(`${API_BASE_URL}/overture/mark`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
