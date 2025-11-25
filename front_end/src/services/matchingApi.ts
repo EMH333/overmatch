@@ -46,9 +46,15 @@ export const matchingApi = {
     timestamp: string;
   }> {
     try {
+      const payload = { ids: osmIds };
+      console.log("Sending to /osm endpoint:", payload);
+
       const response = await fetch(`${API_BASE_URL}/osm`, {
         method: "POST",
-        body: JSON.stringify({ ids: osmIds }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -76,6 +82,9 @@ export const matchingApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/overture`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ ids: overtureIds }),
       });
 

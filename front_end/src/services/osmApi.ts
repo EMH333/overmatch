@@ -3,6 +3,14 @@ interface ElementDetails {
   id: number;
   type: string;
   version: number;
+  nodes?: number[];
+  members?: Member[];
+}
+
+interface Member {
+  type: string;
+  ref: number;
+  role: string;
 }
 
 export const fetchElementTags = async (id: string, elementType: string) => {

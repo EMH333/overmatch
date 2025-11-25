@@ -54,7 +54,6 @@ export const uploadChanges = async (
     options: { header: { "Content-Type": "text/xml; charset=utf-8" } },
     content: xmlWays,
   });
-  // with content: Version mismatch: Provided 4, server had: 3 of Way 21457547
 
   authFetch({
     method: "PUT",

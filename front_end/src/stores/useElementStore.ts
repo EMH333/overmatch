@@ -7,7 +7,6 @@ interface ElementStore {
   overpassElements: OsmElement[];
   currentElement: number;
   uploadElements: OsmElement[];
-  skippedOvertureIds: string[];
   skippedOsmIds: string[];
   elementMatches: Map<string, MatchInfo[]>;
   selectedMatchIndices: Map<string, number>;
@@ -15,7 +14,6 @@ interface ElementStore {
   setCurrentElement: (index: number) => void;
   setUploadElements: (ways: OsmElement[]) => void;
   addToUpload: (way: OsmElement) => void;
-  addSkippedOvertureId: (id: string) => void;
   addSkippedOsmId: (id: string) => void;
   setElementMatches: (osmId: string, matches: MatchInfo[]) => void;
   setSelectedMatchIndex: (osmId: string, index: number) => void;
@@ -28,7 +26,6 @@ export const useElementStore = create<ElementStore>()(
       overpassElements: [],
       currentElement: 0,
       uploadElements: [],
-      skippedOvertureIds: [],
       skippedOsmIds: [],
       elementMatches: new Map(),
       selectedMatchIndices: new Map(),
@@ -38,10 +35,6 @@ export const useElementStore = create<ElementStore>()(
       addToUpload: (way) =>
         set((state) => ({
           uploadElements: [...state.uploadElements, way],
-        })),
-      addSkippedOvertureId: (id) =>
-        set((state) => ({
-          skippedOvertureIds: [...state.skippedOvertureIds, id],
         })),
       addSkippedOsmId: (id) =>
         set((state) => ({
@@ -78,7 +71,6 @@ export const useElementStore = create<ElementStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         uploadElements: state.uploadElements,
-        skippedOvertureIds: state.skippedOvertureIds,
         skippedOsmIds: state.skippedOsmIds,
       }),
     },

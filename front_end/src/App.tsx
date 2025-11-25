@@ -18,7 +18,7 @@ import {
   shuffleArray,
   getElementCoordinates,
 } from "./utils/osmHelpers";
-import { MatchStatus, MatchInfo } from "./types/matching";
+import { MatchStatus } from "./types/matching";
 
 const App: React.FC = () => {
   const [latestChangeset, setLatestChangeset] = useState<number>(0);
@@ -33,7 +33,6 @@ const App: React.FC = () => {
     overpassElements,
     currentElement,
     uploadElements,
-    skippedOvertureIds,
     elementMatches,
     selectedMatchIndices,
     setOverpassElements,
@@ -103,13 +102,6 @@ const App: React.FC = () => {
           if (!matchStatus || !matchStatus.has_match) return false;
           if (uploadedOsmIds.has(osmId)) return false;
 
-          // Check if all matches have been skipped
-          const allMatchesSkipped = matchStatus.matches.every(
-            (match: MatchInfo) =>
-              skippedOvertureIds.includes(match.overture_id),
-          );
-          if (allMatchesSkipped) return false;
-
           // Store match info for this element
           setElementMatches(osmId, matchStatus.matches);
 
@@ -139,7 +131,6 @@ const App: React.FC = () => {
     urlParams.relation,
     overpassElements.length,
     uploadElements,
-    skippedOvertureIds,
     setRelation,
     setOverpassElements,
     setCurrentElement,

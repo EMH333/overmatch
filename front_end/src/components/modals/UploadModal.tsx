@@ -10,7 +10,6 @@ import ChangesetTagTable from "../ChangesetTags";
 import ConfirmationModal from "./ConfirmationModal";
 import { useOsmAuthContext } from "../../contexts/useOsmAuth";
 import { useChangesetStore } from "../../stores/useChangesetStore";
-import { useElementStore } from "../../stores/useElementStore";
 import { matchingApi } from "../../services/matchingApi";
 import { formatOsmId } from "../../utils/osmHelpers";
 
@@ -35,7 +34,6 @@ const UploadModal: React.FC<UploadModalProps> = ({
 }) => {
   const { databaseVersion, description } = useChangesetStore();
   const { osmUser } = useOsmAuthContext();
-  const { skippedOvertureIds } = useElementStore();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isPostingToApi, setIsPostingToApi] = useState(false);
 
@@ -54,12 +52,6 @@ const UploadModal: React.FC<UploadModalProps> = ({
         const osmIds = uploads.map(formatOsmId);
         await matchingApi.postOsmElements(osmIds);
         console.log("Successfully posted OSM elements to API");
-      }
-
-      // Post skipped Overture IDs to the matching API
-      if (skippedOvertureIds.length > 0) {
-        await matchingApi.postOvertureElements(skippedOvertureIds);
-        console.log("Successfully posted skipped Overture elements to API");
       }
     } catch (error) {
       console.error("Failed to post to tracking API:", error);

@@ -7,12 +7,13 @@ import RelationHeading from "./RelationHeading";
 import LocationAutocomplete from "./LocationAutocomplete";
 import NoRelationPlaceholder from "./NoRelationPlaceholder";
 import TagComparisonTable from "./TagComparisonTable";
-import { OsmElement, Tags } from "../objects";
+import { OsmElement, OsmRelation, OsmWay, Tags } from "../objects";
 import { useChangesetStore } from "../stores/useChangesetStore";
 import { useElementStore } from "../stores/useElementStore";
 import { fetchElementTags } from "../services/osmApi";
 import { formatOsmId } from "../utils/osmHelpers";
 import CardHeading from "./CardHeading";
+import { matchingApi } from "../services/matchingApi";
 
 interface LeftPaneProps {
   overpassElements: OsmElement[];
@@ -32,7 +33,6 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     elementMatches,
     selectedMatchIndices,
     addToUpload,
-    addSkippedOvertureId,
     addSkippedOsmId,
     setSelectedMatchIndex,
   } = useElementStore();
@@ -66,6 +66,11 @@ const LeftPane: React.FC<LeftPaneProps> = ({
           currentOsmElement.type,
         );
         currentOsmElement.version = elementData.version;
+        if (currentOsmElement.type === "way") {
+          (currentOsmElement as OsmWay).nodes = elementData.nodes;
+        } else if (currentOsmElement.type === "relation") {
+          (currentOsmElement as OsmRelation).members = elementData.members;
+        }
         setLiveTags(elementData.tags);
       } catch (error) {
         setTagError(
@@ -81,8 +86,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     fetchLiveTags();
   }, [currentOsmElement]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleApplyTags = (updatedTags: Tags, _selectedMatchIndex: number) => {
+  const handleApplyTags = (updatedTags: Tags) => {
     if (!currentOsmElement) return;
 
     // Update the element with new tags
@@ -98,13 +102,13 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     onNext();
   };
 
-  const handleNoMatch = (matchIndex: number) => {
-    if (!currentMatches || !currentMatches[matchIndex]) return;
+  const handleNoMatch = () => {
+    if (!currentMatches || !currentMatches[currentSelectedMatchIndex]) return;
 
-    const overtureId = currentMatches[matchIndex].overture_id;
+    const overtureId = currentMatches[currentSelectedMatchIndex].overture_id;
 
     // Mark this Overture ID as skipped
-    addSkippedOvertureId(overtureId);
+    matchingApi.postOvertureElements([overtureId]);
 
     // Move to next element
     onNext();
@@ -128,7 +132,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   const hasElements = overpassElements && overpassElements.length > 0;
 
   return (
-    <div className="w-full md:w-1/2 lg:w-2/5 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full overflow-y-auto">
+    <div className="w-full md:w-2/3 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full overflow-y-auto">
       <Card>
         <div className="p-4">
           {relation.id ? <RelationHeading /> : <LocationAutocomplete />}
