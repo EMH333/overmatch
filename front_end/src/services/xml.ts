@@ -1,5 +1,5 @@
 import { create } from "xmlbuilder2";
-import { OsmElement } from "../objects";
+import { OsmElement, OsmNode, OsmWay, OsmRelation } from "../objects";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 export const osmXmlBuilder = {
@@ -11,16 +11,46 @@ export const osmXmlBuilder = {
     changeset: number,
     incrementVersion = false,
   ): XMLBuilder {
-    const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("way", {
+    // Build attributes conditionally based on element type
+    const baseAttrs = {
       id: element.id,
       version: incrementVersion ? element.version + 1 : element.version,
       changeset: changeset,
-    });
+    };
 
-    // // Add node references
-    // element.nodes.forEach((nodeId) => {
-    //   doc.ele("nd", { ref: nodeId });
-    // });
+    // Add lat/lon only for nodes
+    const attrs =
+      element.type === "node"
+        ? {
+            ...baseAttrs,
+            lat: (element as OsmNode).lat,
+            lon: (element as OsmNode).lon,
+          }
+        : baseAttrs;
+
+    const doc = create({ version: "1.0", encoding: "UTF-8" }).ele(
+      element.type,
+      attrs,
+    );
+
+    // Add node references
+    if (element.type === "way") {
+      (element as OsmWay).nodes.forEach((nodeId) => {
+        doc.ele("nd", { ref: nodeId });
+      });
+    }
+
+    if (element.type === "relation") {
+      (element as OsmRelation).members.forEach((member) => {
+        doc.ele("member", {
+          type: member.type,
+          ref: member.ref,
+          role: member.role ? member.role : "",
+        });
+      });
+
+      doc.ele("tag", { k: "type", v: "multipolygon" });
+    }
 
     // Add tags
     Object.entries(element.tags).forEach(([key, value]) => {
@@ -33,16 +63,16 @@ export const osmXmlBuilder = {
     return doc;
   },
 
-  createChangeSet(ways: OsmElement[], changeset: number): string {
+  createChangeSet(elements: OsmElement[], changeset: number): string {
     const doc = create({ version: "1.0", encoding: "UTF-8" }).ele("osmChange", {
       version: "0.6",
       generator: "overmatch",
     });
 
-    // Iterate through ways
-    ways.forEach((way) => {
-      const wayElement = this.eleToXml(way, changeset, false);
-      doc.ele("modify").import(wayElement); // Import the way element into the modify element
+    // Iterate through objects
+    elements.forEach((element) => {
+      const modifyElement = this.eleToXml(element, changeset, false);
+      doc.ele("modify").import(modifyElement); // Import the element into the modify element
     });
 
     // Go back to root and end the document

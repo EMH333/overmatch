@@ -2,6 +2,7 @@ interface ElementDetails {
   tags: Record<string, string>;
   id: number;
   type: string;
+  version: number;
 }
 
 export const fetchElementTags = async (id: string, elementType: string) => {

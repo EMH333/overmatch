@@ -29,7 +29,7 @@ const UploadButton: React.FC<UploadButtonProps> = ({
     try {
       setIsUploading(true);
       const changeset = await uploadChanges(
-        uploads, // TODO: Update uploadChanges to handle OsmElement
+        uploads,
         description,
         databaseVersion,
         host,

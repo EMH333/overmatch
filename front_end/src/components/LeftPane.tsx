@@ -12,9 +12,9 @@ import { useChangesetStore } from "../stores/useChangesetStore";
 import { useElementStore } from "../stores/useElementStore";
 import { fetchElementTags } from "../services/osmApi";
 import { formatOsmId } from "../utils/osmHelpers";
+import CardHeading from "./CardHeading";
 
 interface LeftPaneProps {
-  showRelationHeading: boolean;
   overpassElements: OsmElement[];
   currentElement: number;
   isLoading: boolean;
@@ -22,7 +22,6 @@ interface LeftPaneProps {
 }
 
 const LeftPane: React.FC<LeftPaneProps> = ({
-  showRelationHeading,
   overpassElements,
   currentElement,
   isLoading,
@@ -34,6 +33,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     selectedMatchIndices,
     addToUpload,
     addSkippedOvertureId,
+    addSkippedOsmId,
     setSelectedMatchIndex,
   } = useElementStore();
   const [liveTags, setLiveTags] = useState<Tags | null>(null);
@@ -65,6 +65,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
           String(currentOsmElement.id),
           currentOsmElement.type,
         );
+        currentOsmElement.version = elementData.version;
         setLiveTags(elementData.tags);
       } catch (error) {
         setTagError(
@@ -97,13 +98,23 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     onNext();
   };
 
-  const handleSkipMatch = (matchIndex: number) => {
+  const handleNoMatch = (matchIndex: number) => {
     if (!currentMatches || !currentMatches[matchIndex]) return;
 
     const overtureId = currentMatches[matchIndex].overture_id;
 
     // Mark this Overture ID as skipped
     addSkippedOvertureId(overtureId);
+
+    // Move to next element
+    onNext();
+  };
+
+  const handleSkip = () => {
+    if (!currentOsmId) return;
+
+    // Mark this OSM element as skipped
+    addSkippedOsmId(currentOsmId);
 
     // Move to next element
     onNext();
@@ -120,11 +131,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     <div className="w-full md:w-1/2 lg:w-2/5 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full overflow-y-auto">
       <Card>
         <div className="p-4">
-          {relation.id && showRelationHeading ? (
-            <RelationHeading />
-          ) : (
-            <LocationAutocomplete />
-          )}
+          {relation.id ? <RelationHeading /> : <LocationAutocomplete />}
         </div>
       </Card>
 
@@ -158,29 +165,11 @@ const LeftPane: React.FC<LeftPaneProps> = ({
               </Card>
             ) : liveTags && currentMatches ? (
               <>
-                <Card className="p-3 bg-blue-50">
-                  <h3 className="text-sm font-semibold mb-1">
-                    Current Element
-                  </h3>
-                  <div className="text-xs space-y-1">
-                    <div>
-                      <span className="font-medium">OSM ID:</span>{" "}
-                      <span className="font-mono">{currentOsmId}</span>
-                    </div>
-                    {liveTags.name && (
-                      <div>
-                        <span className="font-medium">Name:</span>{" "}
-                        {liveTags.name}
-                      </div>
-                    )}
-                    {liveTags.amenity && (
-                      <div>
-                        <span className="font-medium">Amenity:</span>{" "}
-                        {liveTags.amenity}
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                <CardHeading
+                  name={liveTags && liveTags.name ? liveTags.name : "Unnamed"}
+                  type={currentOsmElement.type}
+                  id={currentOsmElement.id.toString()}
+                />
 
                 <TagComparisonTable
                   osmTags={liveTags}
@@ -188,12 +177,13 @@ const LeftPane: React.FC<LeftPaneProps> = ({
                   selectedMatchIndex={currentSelectedMatchIndex}
                   onMatchSelectionChange={handleMatchSelectionChange}
                   onApplyTags={handleApplyTags}
-                  onSkipMatch={handleSkipMatch}
+                  onNoMatch={handleNoMatch}
+                  onSkip={handleSkip}
                 />
               </>
             ) : (
               <Card className="p-4">
-                <p className="text-gray-500">No match data available</p>
+                <p>No match data available</p>
                 <Button
                   size="sm"
                   color="primary"

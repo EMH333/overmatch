@@ -21,7 +21,6 @@ import {
 import { MatchStatus, MatchInfo } from "./types/matching";
 
 const App: React.FC = () => {
-  const [showRelationHeading, setShowRelationHeading] = useState(false);
   const [latestChangeset, setLatestChangeset] = useState<number>(0);
   const [showFinishedModal, setShowFinishedModal] = useState(false);
   const [isRelationLoading, setIsRelationLoading] = useState(false);
@@ -71,7 +70,6 @@ const App: React.FC = () => {
       if (!relationId || overpassElements.length > 0) return;
 
       setIsRelationLoading(true);
-      setShowRelationHeading(true);
 
       try {
         // Step 1: Fetch all restaurant/amenity elements from Overpass
@@ -223,7 +221,6 @@ const App: React.FC = () => {
       />
       <div className="flex flex-col md:flex-row flex-1 bg-background overflow-auto">
         <LeftPane
-          showRelationHeading={showRelationHeading}
           overpassElements={overpassElements}
           currentElement={currentElement}
           isLoading={isRelationLoading}

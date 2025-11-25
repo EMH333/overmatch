@@ -8,6 +8,7 @@ interface ElementStore {
   currentElement: number;
   uploadElements: OsmElement[];
   skippedOvertureIds: string[];
+  skippedOsmIds: string[];
   elementMatches: Map<string, MatchInfo[]>;
   selectedMatchIndices: Map<string, number>;
   setOverpassElements: (ways: OsmElement[]) => void;
@@ -15,6 +16,7 @@ interface ElementStore {
   setUploadElements: (ways: OsmElement[]) => void;
   addToUpload: (way: OsmElement) => void;
   addSkippedOvertureId: (id: string) => void;
+  addSkippedOsmId: (id: string) => void;
   setElementMatches: (osmId: string, matches: MatchInfo[]) => void;
   setSelectedMatchIndex: (osmId: string, index: number) => void;
   resetElements: () => void;
@@ -27,6 +29,7 @@ export const useElementStore = create<ElementStore>()(
       currentElement: 0,
       uploadElements: [],
       skippedOvertureIds: [],
+      skippedOsmIds: [],
       elementMatches: new Map(),
       selectedMatchIndices: new Map(),
       setOverpassElements: (ways) => set({ overpassElements: ways }),
@@ -39,6 +42,10 @@ export const useElementStore = create<ElementStore>()(
       addSkippedOvertureId: (id) =>
         set((state) => ({
           skippedOvertureIds: [...state.skippedOvertureIds, id],
+        })),
+      addSkippedOsmId: (id) =>
+        set((state) => ({
+          skippedOsmIds: [...state.skippedOsmIds, id],
         })),
       setElementMatches: (osmId, matches) =>
         set((state) => {
@@ -72,6 +79,7 @@ export const useElementStore = create<ElementStore>()(
       partialize: (state) => ({
         uploadElements: state.uploadElements,
         skippedOvertureIds: state.skippedOvertureIds,
+        skippedOsmIds: state.skippedOsmIds,
       }),
     },
   ),

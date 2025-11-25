@@ -1,4 +1,4 @@
-import { OsmElement } from "../objects";
+import { OsmElement, OsmNode, OsmWay, OsmRelation } from "../objects";
 
 /**
  * Format an OsmElement into the string format "type/id"
@@ -41,18 +41,26 @@ export function shuffleArray<T>(array: T[]): T[] {
 export function getElementCoordinates(
   element: OsmElement,
 ): { lat: number; lon: number } | null {
-  if (
-    "lat" in element &&
-    "lon" in element &&
-    element.lat !== undefined &&
-    element.lon !== undefined
-  ) {
-    return { lat: element.lat, lon: element.lon };
+  // Handle nodes - they have lat/lon directly
+  if (element.type === "node") {
+    return { lat: (element as OsmNode).lat, lon: (element as OsmNode).lon };
   }
-  if ("center" in element && element.center) {
-    // Return center of ways and relations
-    const coords = (element as any).center;
-    return { lat: coords.lat, lon: coords.lon };
+
+  // Handle ways - check for center property
+  if (element.type === "way") {
+    const way = element as OsmWay;
+    if (way.center) {
+      return { lat: way.center.lat, lon: way.center.lon };
+    }
   }
+
+  // Handle relations - check for center property
+  if (element.type === "relation") {
+    const relation = element as OsmRelation;
+    if (relation.center) {
+      return { lat: relation.center.lat, lon: relation.center.lon };
+    }
+  }
+
   return null;
 }

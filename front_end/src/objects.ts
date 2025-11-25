@@ -30,8 +30,6 @@ export interface OsmElement {
   tags: Tags;
   version: number;
   user: string;
-  lat?: number;
-  lon?: number;
 }
 
 export interface OvertureMatch {
@@ -54,12 +52,14 @@ export interface OsmWay extends OsmElement {
   bounds: Bounds;
   nodes: number[];
   geometry: Coordinate[];
+  center?: Coordinate;
 }
 
 export interface OsmRelation extends OsmElement {
   type: "relation";
   bounds: Bounds;
   members: OsmMember[];
+  center?: Coordinate;
 }
 
 export interface OsmMember {

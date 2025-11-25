@@ -21,7 +21,8 @@ interface TagComparisonTableProps {
   selectedMatchIndex: number;
   onMatchSelectionChange: (matchIndex: number) => void;
   onApplyTags: (tags: Tags, selectedMatchIndex: number) => void;
-  onSkipMatch: (matchIndex: number) => void;
+  onNoMatch: (matchIndex: number) => void;
+  onSkip: () => void;
 }
 
 type TagDiffType = "same" | "different" | "osm-only" | "overture-only";
@@ -45,7 +46,8 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
   selectedMatchIndex,
   onMatchSelectionChange,
   onApplyTags,
-  onSkipMatch,
+  onNoMatch,
+  onSkip,
 }) => {
   // Track which tags are selected for application
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -218,25 +220,7 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
         </Card>
       )}
 
-      <Card className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Tag Comparison</h3>
-          <div className="flex gap-2">
-            <Chip size="sm" color="success">
-              Same
-            </Chip>
-            <Chip size="sm" color="warning">
-              Different
-            </Chip>
-            <Chip size="sm" color="primary">
-              OSM Only
-            </Chip>
-            <Chip size="sm" color="secondary">
-              Overture Only
-            </Chip>
-          </div>
-        </div>
-
+      <>
         <Table aria-label="Tag comparison table" className="mb-4">
           <TableHeader>
             <TableColumn>APPLY</TableColumn>
@@ -262,6 +246,15 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
                 <TableCell>-</TableCell>
                 <TableCell>No differences found</TableCell>
                 <TableCell>-</TableCell>
+                {matches.length > 1 ? (
+                  <>
+                    {matches.map((_, index) => (
+                      <TableCell key={index}>-</TableCell>
+                    ))}
+                  </>
+                ) : (
+                  <TableCell>-</TableCell>
+                )}
                 <TableCell>-</TableCell>
               </TableRow>
             ) : (
@@ -331,38 +324,26 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
           </TableBody>
         </Table>
 
-        <div className="text-sm text-gray-600 mb-4">
-          <p>
-            <strong>Default behavior:</strong> Automatically adds{" "}
-            <code className="bg-gray-100 px-1 rounded">phone</code>,{" "}
-            <code className="bg-gray-100 px-1 rounded">website</code>,{" "}
-            <code className="bg-gray-100 px-1 rounded">cuisine</code>, and{" "}
-            <code className="bg-gray-100 px-1 rounded">addr:*</code> tags from
-            Overture when missing in OSM. Existing OSM values are preserved by
-            default.
-          </p>
-        </div>
-
         <div className="flex gap-2 justify-end">
-          <Button
-            color="danger"
-            onPress={() => onSkipMatch(selectedMatchIndex)}
-          >
-            Skip This Match
+          <Button color="danger" onPress={() => onNoMatch(selectedMatchIndex)}>
+            Not a match
+          </Button>
+          <Button color="default" variant="flat" onPress={onSkip}>
+            Skip
           </Button>
           <Button
             color="primary"
             onPress={handleApplySelected}
             isDisabled={selectedTags.size === 0}
           >
-            Apply Selected Tags ({selectedTags.size})
+            Apply tags <Chip size="sm">{selectedTags.size}</Chip>
             {matches.length > 1 && ` from Match ${selectedMatchIndex + 1}`}
           </Button>
         </div>
-      </Card>
+      </>
 
       {matches[selectedMatchIndex] && (
-        <Card className="p-4 bg-gray-50">
+        <Card className="p-4">
           <h4 className="text-sm font-semibold mb-2">Match Details</h4>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
@@ -377,7 +358,7 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
               {matches[selectedMatchIndex].distance_m.toFixed(1)}m
             </div>
             <div>
-              <span className="font-medium">Similarity:</span>{" "}
+              <span className="font-medium">Name similarity:</span>{" "}
               {(matches[selectedMatchIndex].similarity * 100).toFixed(1)}%
             </div>
             <div>

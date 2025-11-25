@@ -10,8 +10,8 @@ const ReviewCountBadge: React.FC<ReviewCountBadgeProps> = ({
   count,
   verb,
   color = "gray",
-  singular = "way",
-  plural = "ways",
+  singular = "object",
+  plural = "objects",
 }) => {
   const colorVariants = {
     gray: "bg-gray-100 text-gray-700 text-gray-600",
