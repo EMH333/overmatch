@@ -5,7 +5,7 @@ import Cookies from "js-cookie";
 import { OsmXhrOptions } from "../types/osm";
 
 export const auth = osmAuth({
-  client_id: "o8woB8nXRF1IbN4Bjwjc5EoSVWQiabhCDjqPyl4xUSk",
+  client_id: "Ip4n91cBRNISrVYXLEG4RPODJ13wBDx2f8P8KApOZzI",
   redirect_uri: window.location.origin + window.location.pathname,
   scope: "read_prefs write_api",
   auto: true,
