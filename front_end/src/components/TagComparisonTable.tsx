@@ -270,17 +270,34 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
           </TableBody>
         </Table>
 
-        <div className="flex gap-2 justify-end">
-          <Button color="danger" onPress={onNoMatch}>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <Button
+            color="danger"
+            onPress={onNoMatch}
+            className="flex-1 sm:flex-none min-w-[140px]"
+          >
             Not a match
           </Button>
-          <Button color="default" variant="flat" onPress={onSkip}>
+          <Button
+            color="secondary"
+            onPress={onNoMatch}
+            className="flex-1 sm:flex-none min-w-[140px]"
+          >
+            Nothing to add
+          </Button>
+          <Button
+            color="default"
+            variant="flat"
+            onPress={onSkip}
+            className="flex-1 sm:flex-none min-w-[140px]"
+          >
             Skip
           </Button>
           <Button
             color="primary"
             onPress={handleApplySelected}
             isDisabled={selectedTags.size === 0}
+            className="flex-1 sm:flex-none min-w-[140px]"
           >
             Apply tags <Chip size="sm">{selectedTags.size}</Chip>
           </Button>

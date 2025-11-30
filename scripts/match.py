@@ -1,14 +1,55 @@
 import json
+import re
 
+import atlus
 import geopandas as gpd
-import pandas as pd
 import numpy as np
+import overturetoosm
+import pandas as pd
 from rapidfuzz import fuzz
 from rtree import index
 from tqdm import tqdm
 
-import atlus
-import overturetoosm
+
+def remove_tracking_params_regex(url: str) -> str:
+    """
+    Remove tracking parameters from a URL using regex approach.
+
+    This is a more aggressive regex-based approach that removes common
+    tracking parameter patterns. It's faster but less precise than the
+    parsing approach.
+
+    Args:
+        url: The URL to clean
+
+    Returns:
+        The cleaned URL without tracking parameters
+    """
+    if not url:
+        return url
+
+    # Pattern to match common tracking parameters
+    # This matches utm_*, fbclid, gclid, etc.
+    patterns = [
+        r"[?&]utm_[^&]*",  # All UTM parameters
+        r"[?&][a-z]*id=[^&]*",  # Facebook click ID
+        r"[?&]_ga=[^&]*",  # Google Analytics
+        r"[?&]hsCtaTracking=[^&]*",  # HubSpot
+        r"[?&]hsa_[^&]*",  # HubSpot ads
+        r"[?&]_hs[^&]*",  # HubSpot
+        r"[?&]ref_?=[^&]*",  # Generic ref parameters
+        r"[?&]lipi=[^&]*",  # LinkedIn
+        r"[?&]y_source=[^&]*",  # LinkedIn
+    ]
+
+    cleaned_url = url
+    for pattern in patterns:
+        cleaned_url = re.sub(pattern, "", cleaned_url)
+
+    # Replace & at the start of query string with ?
+    cleaned_url = re.sub(r"\?&", "?", cleaned_url.rstrip("&?"))
+
+    return cleaned_url
 
 
 def load_and_prepare_data():
@@ -177,6 +218,11 @@ def find_matches_for_point(
                     candidate_tags.update({"phone": phone_tag})
             except ValueError:
                 pass
+
+            if "website" in candidate_tags:
+                candidate_tags["website"] = remove_tracking_params_regex(
+                    candidate_tags.get("website", "")
+                )
 
             for toss_tag in ["addr:country", "addr:street_address", "source"]:
                 candidate_tags.pop(toss_tag, None)

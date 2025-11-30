@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card } from "@heroui/card";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
@@ -35,6 +35,15 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [tagError, setTagError] = useState<string>("");
 
+  // Cache for preloaded tags
+  const tagsCache = useRef<
+    Map<
+      string,
+      { tags: Tags; version: number; nodes?: number[]; members?: OsmMember[] }
+    >
+  >(new Map());
+  const preloadAbortController = useRef<AbortController | null>(null);
+
   const currentOsmElement = overpassElements[currentElement];
   const currentOsmId = currentOsmElement
     ? formatOsmId(currentOsmElement)
@@ -50,6 +59,28 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   useEffect(() => {
     const fetchLiveTags = async () => {
       if (!currentOsmElement) return;
+
+      const cacheKey = `${currentOsmElement.type}/${currentOsmElement.id}`;
+
+      // Check if we have cached data from preloading
+      const cached = tagsCache.current.get(cacheKey);
+      if (cached) {
+        setIsLoadingTags(false);
+        setTagError("");
+        setLiveTags(cached.tags);
+
+        // Update element with cached data
+        currentOsmElement.version = cached.version;
+        if (currentOsmElement.type === "way" && cached.nodes) {
+          (currentOsmElement as OsmWay).nodes = cached.nodes;
+        } else if (currentOsmElement.type === "relation" && cached.members) {
+          (currentOsmElement as OsmRelation).members = cached.members;
+        }
+
+        // Remove from cache after use
+        tagsCache.current.delete(cacheKey);
+        return;
+      }
 
       setIsLoadingTags(true);
       setTagError("");
@@ -84,6 +115,69 @@ const LeftPane: React.FC<LeftPaneProps> = ({
 
     fetchLiveTags();
   }, [currentOsmElement]);
+
+  // Preload next element's tags
+  useEffect(() => {
+    const preloadNextElement = async () => {
+      // Cancel any ongoing preload
+      if (preloadAbortController.current) {
+        preloadAbortController.current.abort();
+      }
+
+      // Check if there's a next element
+      const nextIndex = currentElement + 1;
+      if (nextIndex >= overpassElements.length) return;
+
+      const nextElement = overpassElements[nextIndex];
+      if (!nextElement) return;
+
+      const cacheKey = `${nextElement.type}/${nextElement.id}`;
+
+      // Don't preload if already cached
+      if (tagsCache.current.has(cacheKey)) return;
+
+      // Create new abort controller for this preload
+      preloadAbortController.current = new AbortController();
+
+      try {
+        const elementData = await fetchElementTags(
+          String(nextElement.id),
+          nextElement.type,
+        );
+
+        // Cache the result
+        tagsCache.current.set(cacheKey, {
+          tags: elementData.tags,
+          version: elementData.version,
+          nodes: elementData.nodes,
+          members: elementData.members as OsmMember[] | undefined,
+        });
+      } catch (error) {
+        // Silently fail preloading - the element will be fetched normally when needed
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.log("Preload failed for next element, will fetch on demand");
+        }
+      }
+    };
+
+    // Only preload if we're not loading the current element
+    if (!isLoadingTags && currentOsmElement && liveTags) {
+      preloadNextElement();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (preloadAbortController.current) {
+        preloadAbortController.current.abort();
+      }
+    };
+  }, [
+    currentElement,
+    overpassElements,
+    isLoadingTags,
+    currentOsmElement,
+    liveTags,
+  ]);
 
   const handleApplyTags = (updatedTags: Tags) => {
     if (!currentOsmElement) return;

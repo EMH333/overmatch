@@ -69,7 +69,7 @@ FastAPI service deployed on AWS Lambda that tracks processed elements:
 - Timestamp tracking for audit trails
 - Infrastructure as Code (CloudFormation)
 
-**Cost:** ~$3-5/month for moderate usage
+**Cost:** under $5/month for moderate usage
 
 See [`api/README.md`](api/README.md) for detailed deployment instructions.
 
