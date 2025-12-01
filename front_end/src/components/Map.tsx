@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -10,55 +10,54 @@ interface MapProps {
 const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // We expect exactly 2 coordinates for the two points
-    if (points.length !== 2) {
-      console.log(points);
-      console.warn("Map expects exactly 2 coordinates for two points");
-      return;
-    }
+    // Default view: continental US
+    const defaultCenter: [number, number] = [-98.5795, 39.8283];
+    const defaultZoom = 4;
 
-    const [point1, point2] = points;
+    // Check if we have valid data
+    const hasValidData = points.length === 2;
 
-    // Calculate bounds from the two points
-    const bounds = new maplibregl.LngLatBounds(point1, point1).extend(point2);
+    const mapConfig: maplibregl.MapOptions = hasValidData
+      ? (() => {
+          const [point1, point2] = points;
+          // Calculate bounds from the two points
+          const bounds = new maplibregl.LngLatBounds(point1, point1).extend(
+            point2,
+          );
+          return {
+            container: mapContainer.current!,
+            style: isDarkMode
+              ? "https://tiles.openfreemap.org/styles/positron"
+              : "https://tiles.openfreemap.org/styles/fiord",
+            bounds: bounds,
+            fitBoundsOptions: {
+              padding: 100,
+              maxZoom: 19,
+            },
+          };
+        })()
+      : {
+          container: mapContainer.current!,
+          style: isDarkMode
+            ? "https://tiles.openfreemap.org/styles/positron"
+            : "https://tiles.openfreemap.org/styles/fiord",
+          center: defaultCenter,
+          zoom: defaultZoom,
+        };
 
     // Initialize the map
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          "raster-tiles": {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution:
-              '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>',
-            maxzoom: 19,
-          },
-        },
-        layers: [
-          {
-            id: "simple-tiles",
-            type: "raster",
-            source: "raster-tiles",
-            minzoom: 0,
-            maxzoom: 24,
-          },
-        ],
-      },
-      bounds: bounds,
-      fitBoundsOptions: {
-        padding: 100,
-        maxZoom: 19,
-      },
-    });
+    map.current = new maplibregl.Map(mapConfig);
 
     map.current.on("style.load", () => {
+      // Only add overlays if we have valid data
+      if (!hasValidData) return;
+
+      const [point1, point2] = points;
       // Add source for the arrow line between points
       map.current?.addSource("arrow-line", {
         type: "geojson",
@@ -228,11 +227,51 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
     return () => {
       map.current?.remove();
     };
-  }, [points, zoom]);
+  }, [points, zoom, isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
 
   return (
     <div className="relative w-full h-full">
-      <div className="absolute bottom-2 md:bottom-auto md:top-2 left-2 z-10 w-40 md:w-72"></div>
+      <div className="absolute bottom-2 md:bottom-auto md:top-2 left-2 z-10">
+        <button
+          onClick={toggleTheme}
+          className="bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold py-2 px-4 rounded-lg shadow-lg transition-colors duration-200 flex items-center gap-2"
+          aria-label={`Switch to ${isDarkMode ? "light" : "dark"} mode`}
+        >
+          {isDarkMode ? (
+            <>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="hidden sm:inline">Light</span>
+            </>
+          ) : (
+            <>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+              </svg>
+              <span className="hidden sm:inline">Dark</span>
+            </>
+          )}
+        </button>
+      </div>
       <div ref={mapContainer} className="w-full h-full rounded-lg shadow-lg" />
     </div>
   );
