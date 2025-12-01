@@ -10,128 +10,88 @@ interface MapProps {
 const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const animationRef = useRef<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [styleLoaded, setStyleLoaded] =
+    useState<maplibregl.StyleSpecification | null>(null);
 
+  // Fetch and cache the vector style
   useEffect(() => {
-    if (!mapContainer.current) return;
+    const styleUrl = isDarkMode
+      ? "https://tiles.openfreemap.org/styles/positron"
+      : "https://tiles.openfreemap.org/styles/fiord";
 
-    // Default view: continental US
-    const defaultCenter: [number, number] = [-98.5795, 39.8283];
-    const defaultZoom = 4;
+    fetch(styleUrl)
+      .then((res) => res.json())
+      .then((style: maplibregl.StyleSpecification) => {
+        setStyleLoaded(style);
+      })
+      .catch((err) => {
+        console.error("Failed to load map style:", err);
+      });
+  }, [isDarkMode]);
 
-    // Check if we have valid data
+  // Initialize map once style is loaded
+  useEffect(() => {
+    if (!mapContainer.current || !styleLoaded) return;
+
+    // Clean up existing map and animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
+
     const hasValidData = points.length === 2;
 
-    const mapConfig: maplibregl.MapOptions = hasValidData
-      ? (() => {
-          const [point1, point2] = points;
-          // Calculate bounds from the two points
-          const bounds = new maplibregl.LngLatBounds(point1, point1).extend(
-            point2,
-          );
-          return {
-            container: mapContainer.current!,
-            style: isDarkMode
-              ? "https://tiles.openfreemap.org/styles/positron"
-              : "https://tiles.openfreemap.org/styles/fiord",
-            bounds: bounds,
-            fitBoundsOptions: {
-              padding: 100,
-              maxZoom: 19,
-            },
-          };
-        })()
-      : {
-          container: mapContainer.current!,
-          style: isDarkMode
-            ? "https://tiles.openfreemap.org/styles/positron"
-            : "https://tiles.openfreemap.org/styles/fiord",
-          center: defaultCenter,
-          zoom: defaultZoom,
-        };
+    // Clone the style to avoid mutating the cached version
+    const style = JSON.parse(
+      JSON.stringify(styleLoaded),
+    ) as maplibregl.StyleSpecification;
 
-    // Initialize the map
-    map.current = new maplibregl.Map(mapConfig);
-
-    map.current.on("style.load", () => {
-      // Only add overlays if we have valid data
-      if (!hasValidData) return;
-
+    // If we have valid points, inject our custom sources and layers into the style
+    if (hasValidData) {
       const [point1, point2] = points;
-      // Add source for the arrow line between points
-      map.current?.addSource("arrow-line", {
+
+      // Source for animated flowing dots (will be updated via animation)
+      style.sources["animated-dots"] = {
         type: "geojson",
         data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      };
+
+      // Source for the static trail (faint line of dots)
+      const trailPoints: GeoJSON.Feature<GeoJSON.Point>[] = [];
+      const numTrailPoints = 30;
+      for (let i = 0; i <= numTrailPoints; i++) {
+        const t = i / numTrailPoints;
+        const lon = point1[0] + t * (point2[0] - point1[0]);
+        const lat = point1[1] + t * (point2[1] - point1[1]);
+        trailPoints.push({
           type: "Feature",
           properties: {},
           geometry: {
-            type: "LineString",
-            coordinates: [point1, point2],
+            type: "Point",
+            coordinates: [lon, lat],
           },
-        },
-      });
+        });
+      }
 
-      // Add the connecting line layer
-      map.current?.addLayer({
-        id: "arrow-line-layer",
-        type: "line",
-        source: "arrow-line",
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
+      style.sources["trail-dots"] = {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: trailPoints,
         },
-        paint: {
-          "line-color": "#3b82f6",
-          "line-width": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            2,
-            15,
-            3,
-            17,
-            4,
-            22,
-            6,
-          ],
-          "line-opacity": 0.7,
-        },
-      });
+      };
 
-      // Add arrowhead decoration on the line
-      map.current?.addLayer({
-        id: "arrow-line-decoration",
-        type: "symbol",
-        source: "arrow-line",
-        layout: {
-          "symbol-placement": "line",
-          "symbol-spacing": 1000, // Large spacing so we only get one arrow
-          "text-field": "→",
-          "text-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            16,
-            15,
-            24,
-            17,
-            32,
-            22,
-            48,
-          ],
-          "text-keep-upright": false,
-          "text-rotation-alignment": "map",
-        },
-        paint: {
-          "text-color": "#3b82f6",
-          "text-opacity": 0.8,
-        },
-      });
-
-      // Add source for the two points
-      map.current?.addSource("points", {
+      // Source for endpoint markers
+      style.sources["points"] = {
         type: "geojson",
         data: {
           type: "FeatureCollection",
@@ -154,80 +114,226 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
             },
           ],
         },
-      });
+      };
 
-      // Add outer circle for points (larger, semi-transparent)
-      map.current?.addLayer({
-        id: "points-outer",
-        type: "circle",
-        source: "points",
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            8,
-            15,
-            12,
-            17,
-            16,
-            22,
-            24,
-          ],
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "start",
-            "#22c55e", // Green for start point
-            "end",
-            "#ef4444", // Red for end point
-            "#3b82f6",
-          ],
-          "circle-opacity": 0.3,
-        },
-      });
+      // Add our custom layers to the style
+      style.layers.push(
+        // Static trail dots (faint background)
+        {
+          id: "trail-dots-layer",
+          type: "circle",
+          source: "trail-dots",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12,
+              1,
+              15,
+              1.5,
+              17,
+              2,
+              22,
+              3,
+            ],
+            "circle-color": "#3b82f6",
+            "circle-opacity": 0.2,
+          },
+        } as maplibregl.LayerSpecification,
+        // Animated flowing dots
+        {
+          id: "animated-dots-layer",
+          type: "circle",
+          source: "animated-dots",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12,
+              3,
+              15,
+              4,
+              17,
+              5,
+              22,
+              7,
+            ],
+            "circle-color": "#3b82f6",
+            "circle-opacity": ["get", "opacity"],
+            "circle-blur": 0.2,
+          },
+        } as maplibregl.LayerSpecification,
+        // Outer glow for endpoint markers
+        {
+          id: "points-outer",
+          type: "circle",
+          source: "points",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12,
+              8,
+              15,
+              12,
+              17,
+              16,
+              22,
+              24,
+            ],
+            "circle-color": [
+              "match",
+              ["get", "type"],
+              "start",
+              "#ef4444",
+              "end",
+              "#22c55e",
+              "#3b82f6",
+            ],
+            "circle-opacity": 0.3,
+          },
+        } as maplibregl.LayerSpecification,
+        // Inner solid endpoint markers
+        {
+          id: "points-inner",
+          type: "circle",
+          source: "points",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12,
+              5,
+              15,
+              7,
+              17,
+              9,
+              22,
+              14,
+            ],
+            "circle-color": [
+              "match",
+              ["get", "type"],
+              "start",
+              "#ef4444",
+              "end",
+              "#22c55e",
+              "#3b82f6",
+            ],
+            "circle-opacity": 1,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        } as maplibregl.LayerSpecification,
+      );
+    }
 
-      // Add inner circle for points (smaller, solid)
-      map.current?.addLayer({
-        id: "points-inner",
-        type: "circle",
-        source: "points",
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12,
-            5,
-            15,
-            7,
-            17,
-            9,
-            22,
-            14,
-          ],
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "start",
-            "#22c55e", // Green for start point
-            "end",
-            "#ef4444", // Red for end point
-            "#3b82f6",
-          ],
-          "circle-opacity": 1,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-    });
+    // Create map config
+    const mapConfig: maplibregl.MapOptions = hasValidData
+      ? (() => {
+          const [point1, point2] = points;
+          const bounds = new maplibregl.LngLatBounds(point1, point1).extend(
+            point2,
+          );
+          return {
+            container: mapContainer.current!,
+            style: style,
+            bounds: bounds,
+            fitBoundsOptions: {
+              padding: 100,
+              maxZoom: 19,
+            },
+          };
+        })()
+      : {
+          container: mapContainer.current!,
+          style: style,
+          bounds: new maplibregl.LngLatBounds(
+            [-124.848974, 24.396308],
+            [-66.885444, 49.384358],
+          ),
+          fitBoundsOptions: {
+            padding: 50,
+          },
+        };
 
-    // Cleanup on unmount
+    map.current = new maplibregl.Map(mapConfig);
+
+    // Start animation once map loads
+    if (hasValidData) {
+      map.current.on("load", () => {
+        const [point1, point2] = points;
+        const numDots = 4; // Number of animated dots
+        const speed = 0.0015; // Speed of animation
+
+        let offsets = Array.from({ length: numDots }, (_, i) => i / numDots);
+
+        const animate = () => {
+          if (!map.current) return;
+
+          // Update offsets
+          offsets = offsets.map((offset) => {
+            const newOffset = offset + speed;
+            return newOffset > 1 ? newOffset - 1 : newOffset;
+          });
+
+          // Generate dot positions with opacity based on position
+          // Animation goes from point2 (end/Overture) to point1 (start/OSM)
+          const features: GeoJSON.Feature<GeoJSON.Point>[] = offsets.map(
+            (offset) => {
+              const lon = point2[0] + offset * (point1[0] - point2[0]);
+              const lat = point2[1] + offset * (point1[1] - point2[1]);
+
+              // Fade in at start, full opacity in middle, fade out at end
+              let opacity = 1;
+              if (offset < 0.1) {
+                opacity = offset / 0.1;
+              } else if (offset > 0.9) {
+                opacity = (1 - offset) / 0.1;
+              }
+
+              return {
+                type: "Feature",
+                properties: { opacity },
+                geometry: {
+                  type: "Point",
+                  coordinates: [lon, lat],
+                },
+              };
+            },
+          );
+
+          // Update the source
+          const source = map.current.getSource(
+            "animated-dots",
+          ) as maplibregl.GeoJSONSource;
+          if (source) {
+            source.setData({
+              type: "FeatureCollection",
+              features,
+            });
+          }
+
+          animationRef.current = requestAnimationFrame(animate);
+        };
+
+        animate();
+      });
+    }
+
     return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
       map.current?.remove();
+      map.current = null;
     };
-  }, [points, zoom, isDarkMode]);
+  }, [points, zoom, styleLoaded]);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
