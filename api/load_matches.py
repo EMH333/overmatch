@@ -9,12 +9,13 @@ import json
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
+from tqdm import tqdm
 
 
 def load_jsonl(file_path: str) -> list[dict]:
@@ -113,45 +114,40 @@ def upload_to_dynamodb(
     dynamodb = boto3.resource("dynamodb", region_name=region_name)
     table = dynamodb.Table(table_name)
 
-    timestamp = datetime.now(datetime.UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     successful = 0
     failed = 0
 
     osm_ids = list(grouped_matches.keys())
     total = len(osm_ids)
 
-    print(f"Uploading {total} OSM elements with matches to DynamoDB...")
+    with tqdm(total=total, desc="Uploading to DynamoDB", unit="items") as pbar:
+        for i in range(0, total, batch_size):
+            batch = osm_ids[i : i + batch_size]
 
-    for i in range(0, total, batch_size):
-        batch = osm_ids[i : i + batch_size]
+            try:
+                with table.batch_writer() as writer:
+                    for osm_id in batch:
+                        matches = grouped_matches[osm_id]
 
-        try:
-            with table.batch_writer() as writer:
-                for osm_id in batch:
-                    matches = grouped_matches[osm_id]
+                        item = {
+                            "element_id": osm_id,
+                            "matches": matches,
+                            "match_count": len(matches),
+                            "loaded_at": timestamp,
+                        }
 
-                    item = {
-                        "element_id": osm_id,
-                        "matches": matches,
-                        "match_count": len(matches),
-                        "loaded_at": timestamp,
-                    }
+                        # Convert floats to Decimal for DynamoDB
+                        item = convert_floats_to_decimal(item)
 
-                    # Convert floats to Decimal for DynamoDB
-                    item = convert_floats_to_decimal(item)
+                        writer.put_item(Item=item)
+                        successful += 1
+                        pbar.update(1)
 
-                    writer.put_item(Item=item)
-                    successful += 1
-
-            # Progress indicator
-            if (i + batch_size) % 100 == 0 or (i + batch_size) >= total:
-                print(
-                    f"  Progress: {min(i + batch_size, total)}/{total} items uploaded"
-                )
-
-        except ClientError as e:
-            print(f"Error uploading batch starting at index {i}: {e}")
-            failed += len(batch)
+            except ClientError as e:
+                print(f"Error uploading batch starting at index {i}: {e}")
+                failed += len(batch)
+                pbar.update(len(batch))
 
     return successful, failed
 

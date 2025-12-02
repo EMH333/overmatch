@@ -9,7 +9,8 @@ import datetime
 
 # Configuration
 QLEVER_ENDPOINT = "https://qlever.dev/api/osm-planet"
-relation = 162069  # DC
+# relation = 162069  # DC
+relation = 148838  # US
 
 # SPARQL query
 query = f"""

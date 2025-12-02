@@ -1,5 +1,8 @@
 import json
+import logging
 import re
+import time
+from datetime import datetime
 
 import atlus
 import geopandas as gpd
@@ -9,6 +12,19 @@ import pandas as pd
 from rapidfuzz import fuzz
 from rtree import index
 from tqdm import tqdm
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(
+            f"logs/match_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        ),
+        logging.StreamHandler(),
+    ],
+)
+logger = logging.getLogger(__name__)
 
 
 def remove_tracking_params_regex(url: str) -> str:
@@ -32,14 +48,14 @@ def remove_tracking_params_regex(url: str) -> str:
     # This matches utm_*, fbclid, gclid, etc.
     patterns = [
         r"[?&]utm_[^&]*",  # All UTM parameters
-        r"[?&][a-z]*id=[^&]*",  # Facebook click ID
+        r"[?&][a-z_]*id=[^&]*",  # Facebook click ID
         r"[?&]_ga=[^&]*",  # Google Analytics
         r"[?&]hsCtaTracking=[^&]*",  # HubSpot
         r"[?&]hsa_[^&]*",  # HubSpot ads
         r"[?&]_hs[^&]*",  # HubSpot
         r"[?&]ref_?=[^&]*",  # Generic ref parameters
         r"[?&]lipi=[^&]*",  # LinkedIn
-        r"[?&]y_source=[^&]*",  # LinkedIn
+        r"[?&][a-z]+_source=[^&]*",  # LinkedIn
     ]
 
     cleaned_url = url
@@ -52,12 +68,24 @@ def remove_tracking_params_regex(url: str) -> str:
     return cleaned_url
 
 
-def load_and_prepare_data():
+def load_and_prepare_data(osm_layer_path: str, overture_layer_path: str) -> tuple:
     """Load data and prepare for matching"""
-    # Load data
-    osm_layer = gpd.read_file("data/osm_qlever.geojson")
-    with open("data/overture.geojson") as f:
-        overture_json = json.load(f)
+    logger.info(f"Loading OSM layer from: {osm_layer_path}")
+    try:
+        osm_layer = gpd.read_file(osm_layer_path)
+        logger.info(f"Successfully loaded OSM layer with {len(osm_layer):,} features")
+    except Exception as e:
+        logger.error(f"Failed to load OSM layer: {e}")
+        raise
+
+    logger.info(f"Loading Overture layer from: {overture_layer_path}")
+    try:
+        with open(overture_layer_path) as f:
+            overture_json = json.load(f)
+        logger.info("Successfully loaded Overture JSON")
+    except Exception as e:
+        logger.error(f"Failed to load Overture layer: {e}")
+        raise
 
     overture_layer = gpd.GeoDataFrame.from_features(
         overture_json["features"], crs="EPSG:4326"
@@ -67,29 +95,40 @@ def load_and_prepare_data():
     overture_layer["lon"] = overture_layer.geometry.x
     overture_layer["lat"] = overture_layer.geometry.y
 
-    # Use a projected CRS for accurate distance calculations
-    # Choose appropriate UTM zone or use a local projection
-    osm_layer = osm_layer.to_crs("EPSG:3857")  # Web Mercator (meters)
-    overture_layer = overture_layer.to_crs("EPSG:3857")
+    logger.info("Converting to projected CRS (EPSG:3857) for distance calculations")
+    try:
+        # Use a projected CRS for accurate distance calculations
+        # Choose appropriate UTM zone or use a local projection
+        osm_layer = osm_layer.to_crs("EPSG:3857")  # Web Mercator (meters)
+        overture_layer = overture_layer.to_crs("EPSG:3857")
+        logger.info("CRS conversion successful")
+    except Exception as e:
+        logger.error(f"Failed to convert CRS: {e}")
+        raise
 
-    print(f"OSM layer has {len(osm_layer)} features")
-    print(f"Overture layer has {len(overture_layer)} features")
+    logger.info(f"OSM layer has {len(osm_layer):,} features")
+    logger.info(f"Overture layer has {len(overture_layer):,} features")
 
     return osm_layer, overture_layer
 
 
 def build_spatial_index(layer: gpd.GeoDataFrame) -> index.Index:
     """Build spatial index for the layer"""
-    spatial_idx = index.Index()
-    for idx, geom in enumerate(layer.geometry):
-        spatial_idx.insert(idx, geom.bounds)
-    print(f"Spatial index built with {len(layer)} features")
-    return spatial_idx
+    logger.info("Building spatial index...")
+    try:
+        spatial_idx = index.Index()
+        for idx, geom in enumerate(layer.geometry):
+            spatial_idx.insert(idx, geom.bounds)
+        logger.info(f"Spatial index built with {len(layer):,} features")
+        return spatial_idx
+    except Exception as e:
+        logger.error(f"Failed to build spatial index: {e}")
+        raise
 
 
 def preprocess_overture_layer(overture_layer: gpd.GeoDataFrame) -> dict:
     """Pre-extract frequently accessed data for faster lookup"""
-    print("Preprocessing overture layer...")
+    logger.info("Preprocessing Overture layer for faster access...")
 
     preprocessed = {"names": [], "ids": [], "lon": [], "lat": [], "geometries": []}
 
@@ -116,6 +155,7 @@ def preprocess_overture_layer(overture_layer: gpd.GeoDataFrame) -> dict:
     preprocessed["lon"] = np.array(preprocessed["lon"], dtype=float)
     preprocessed["lat"] = np.array(preprocessed["lat"], dtype=float)
 
+    logger.info("Preprocessing complete")
     return preprocessed
 
 
@@ -197,6 +237,11 @@ def find_matches_for_point(
                     ):
                         candidate_dict[key] = val
 
+            if "names" in candidate_dict:
+                candidate_dict["names"]["rules"] = None
+            if "brand" in candidate_dict and "names" in candidate_dict.get("brand", {}):
+                candidate_dict["brand"]["rules"] = None
+
             candidate_tags = overturetoosm.process_place(candidate_dict)
 
             try:
@@ -204,8 +249,10 @@ def find_matches_for_point(
                 if street_addr:
                     address_tags = atlus.get_address(street_addr)[0]
                     candidate_tags.update(address_tags)
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.debug(f"Address parsing failed for {street_addr}: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error in address parsing: {e}")
 
             if "addr:housenumber" in candidate_tags and "addr:housenumber" in row:
                 if candidate_tags["addr:housenumber"] != row["addr:housenumber"]:
@@ -216,10 +263,24 @@ def find_matches_for_point(
                 if phone:
                     phone_tag = atlus.get_phone(phone)
                     candidate_tags.update({"phone": phone_tag})
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.debug(f"Phone parsing failed for {phone}: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error in phone parsing: {e}")
 
             if "website" in candidate_tags:
+                if any(
+                    keyword in candidate_tags["website"]
+                    for keyword in [
+                        "yelp.com",
+                        "ubereats.com",
+                        "doordash.com",
+                        "grubhub.com",
+                        "google.com",
+                        "groupon.com",
+                    ]
+                ):
+                    candidate_tags.pop("website")
                 candidate_tags["website"] = remove_tracking_params_regex(
                     candidate_tags.get("website", "")
                 )
@@ -254,48 +315,116 @@ def process_chunk(chunk_data, overture_layer, preprocessed, spatial_idx):
 
 
 def main():
-    # Load and prepare data
-    osm_layer, overture_layer = load_and_prepare_data()
+    start_time = time.time()
+    logger.info("=" * 60)
+    logger.info("Starting match.py script")
+    logger.info("=" * 60)
 
-    # Build spatial index
-    spatial_idx = build_spatial_index(overture_layer)
-
-    # Preprocess overture layer for faster access
-    preprocessed = preprocess_overture_layer(overture_layer)
-
-    # Prepare row data for processing
-    row_data = list(osm_layer.iterrows())
-
-    # Option 1: Sequential with progress bar (easier to debug)
-    print("Processing matches...")
-    all_matches = []
-    for data in tqdm(row_data, total=len(osm_layer)):
-        matches = find_matches_for_point(
-            data, overture_layer, preprocessed, spatial_idx
+    try:
+        # Load and prepare data
+        load_start = time.time()
+        osm_layer, overture_layer = load_and_prepare_data(
+            "data/osm_qlever.geojson", "data/overture.geojson"
         )
-        all_matches.extend(matches)
+        load_duration = time.time() - load_start
+        logger.info(f"Data loading completed in {load_duration:.2f} seconds")
 
-    # Option 2: Parallel processing (uncomment to use)
-    # print(f"Processing matches using {cpu_count()} cores...")
-    # chunk_size = max(1, len(row_data) // (cpu_count() * 4))
-    # chunks = [row_data[i:i + chunk_size] for i in range(0, len(row_data), chunk_size)]
-    #
-    # process_func = partial(process_chunk,
-    #                       overture_layer=overture_layer,
-    #                       preprocessed=preprocessed,
-    #                       spatial_idx=spatial_idx)
-    #
-    # with Pool(cpu_count()) as pool:
-    #     results = list(tqdm(pool.imap(process_func, chunks), total=len(chunks)))
-    #
-    # all_matches = [match for chunk_matches in results for match in chunk_matches]
+        # Build spatial index
+        index_start = time.time()
+        spatial_idx = build_spatial_index(overture_layer)
+        index_duration = time.time() - index_start
+        logger.info(f"Spatial index built in {index_duration:.2f} seconds")
 
-    # Save results
-    print(f"Found {len(all_matches)} matches")
-    matches_df = pd.DataFrame(all_matches)
-    matches_df.to_json("data/matches.jsonl", orient="records", lines=True)
-    print("Results saved to matches.jsonl")
+        # Preprocess overture layer for faster access
+        preprocess_start = time.time()
+        preprocessed = preprocess_overture_layer(overture_layer)
+        preprocess_duration = time.time() - preprocess_start
+        logger.info(f"Preprocessing completed in {preprocess_duration:.2f} seconds")
+
+        # Prepare row data for processing
+        row_data = list(osm_layer.iterrows())
+        logger.info(f"Prepared {len(row_data)} rows for processing")
+
+        # Option 1: Sequential with progress bar (easier to debug)
+        logger.info("Starting match processing...")
+        matching_start = time.time()
+        all_matches = []
+        error_count = 0
+
+        for data in tqdm(row_data, total=len(osm_layer), desc="Processing matches"):
+            try:
+                matches = find_matches_for_point(
+                    data, overture_layer, preprocessed, spatial_idx
+                )
+                all_matches.extend(matches)
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Error processing row {data[0]}: {e}")
+                if error_count > 100:
+                    logger.critical("Too many errors encountered, stopping...")
+                    raise
+
+        matching_duration = time.time() - matching_start
+        logger.info(f"Match processing completed in {matching_duration:.2f} seconds")
+        if error_count > 0:
+            logger.warning(f"Encountered {error_count} errors during processing")
+
+        # Option 2: Parallel processing (uncomment to use)
+        # logger.info(f"Processing matches using {cpu_count()} cores...")
+        # chunk_size = max(1, len(row_data) // (cpu_count() * 4))
+        # chunks = [row_data[i:i + chunk_size] for i in range(0, len(row_data), chunk_size)]
+        #
+        # process_func = partial(process_chunk,
+        #                       overture_layer=overture_layer,
+        #                       preprocessed=preprocessed,
+        #                       spatial_idx=spatial_idx)
+        #
+        # with Pool(cpu_count()) as pool:
+        #     results = list(tqdm(pool.imap(process_func, chunks), total=len(chunks)))
+        #
+        # all_matches = [match for chunk_matches in results for match in chunk_matches]
+
+        # Save results
+        logger.info(f"Found {len(all_matches):,} matches")
+        save_start = time.time()
+        matches_df = pd.DataFrame(all_matches)
+        output_file = "data/matches.jsonl"
+        matches_df.to_json(output_file, orient="records", lines=True)
+        save_duration = time.time() - save_start
+        logger.info(f"Results saved to {output_file} in {save_duration:.2f} seconds")
+
+        # Summary
+        total_duration = time.time() - start_time
+        logger.info("=" * 60)
+        logger.info("EXECUTION SUMMARY")
+        logger.info("=" * 60)
+        logger.info(
+            f"Total execution time: {total_duration:.2f} seconds ({total_duration / 60:.2f} minutes)"
+        )
+        logger.info(f"  - Data loading: {load_duration:.2f}s")
+        logger.info(f"  - Spatial indexing: {index_duration:.2f}s")
+        logger.info(f"  - Preprocessing: {preprocess_duration:.2f}s")
+        logger.info(f"  - Match processing: {matching_duration:.2f}s")
+        logger.info(f"  - Saving results: {save_duration:.2f}s")
+        logger.info(f"OSM features processed: {len(osm_layer):,}")
+        logger.info(f"Overture features indexed: {len(overture_layer):,}")
+        logger.info(f"Total matches found: {len(all_matches):,}")
+        logger.info(
+            f"Match rate: {len(all_matches) / len(osm_layer):.2f} matches per OSM feature"
+        )
+        logger.info("Script completed successfully")
+        logger.info("=" * 60)
+
+    except Exception as e:
+        logger.critical(f"Script failed with error: {e}", exc_info=True)
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger.warning("Script interrupted by user")
+    except Exception as e:
+        logger.critical(f"Script terminated with error: {e}")
+        raise
