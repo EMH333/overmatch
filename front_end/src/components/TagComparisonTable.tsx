@@ -11,10 +11,11 @@ import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Card } from "@heroui/card";
 import { Alert } from "@heroui/alert";
-
+import { Progress } from "@heroui/progress";
 import { Checkbox } from "@heroui/checkbox";
 import { Tags } from "../objects";
 import { MatchInfo } from "../types/matching";
+import { Divider } from "@heroui/react";
 
 interface TagComparisonTableProps {
   osmTags: Tags;
@@ -48,6 +49,8 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
 }) => {
   // Track which tags are selected for application
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  // Track whether match details are expanded
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   // Merge all matches with priority to the closest one (by distance)
   const mergedOvertureTags = useMemo(() => {
@@ -306,48 +309,119 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
 
       {matches[0] && (
         <Card className="p-4">
-          <h4 className="text-sm font-semibold mb-2">
-            {matches.length > 1
-              ? "Closest Match Details (Priority)"
-              : "Match Details"}
-          </h4>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="font-medium">Overture ID:</span>
-              <br />
-              <span className="font-mono text-xs">
-                {
-                  [...matches].sort((a, b) => a.distance_m - b.distance_m)[0]
-                    .overture_id
-                }
-              </span>
-            </div>
-            <div>
-              <span className="font-medium">Distance:</span>{" "}
-              {[...matches]
-                .sort((a, b) => a.distance_m - b.distance_m)[0]
-                .distance_m.toFixed(1)}
-              m
-            </div>
-            <div>
-              <span className="font-medium">Name similarity:</span>{" "}
-              {(
-                [...matches].sort((a, b) => a.distance_m - b.distance_m)[0]
-                  .similarity * 100
-              ).toFixed(1)}
-              %
-            </div>
-            <div>
-              <span className="font-medium">Location:</span>{" "}
-              {[...matches]
-                .sort((a, b) => a.distance_m - b.distance_m)[0]
-                .lat.toFixed(5)}
-              ,{" "}
-              {[...matches]
-                .sort((a, b) => a.distance_m - b.distance_m)[0]
-                .lon.toFixed(5)}
-            </div>
-          </div>
+          {(() => {
+            const closestMatch = [...matches].sort(
+              (a, b) => a.distance_m - b.distance_m,
+            )[0];
+
+            return (
+              <>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+                  <h4 className="text-sm font-semibold">
+                    {matches.length > 1
+                      ? "Closest Match Details (Priority)"
+                      : "Match Details"}
+                  </h4>
+                  <div className="flex flex-col items-start sm:items-end gap-1">
+                    <span className="text-xs text-gray-600">Overture ID:</span>
+                    <span className="font-mono text-xs break-all">
+                      {closestMatch.overture_id}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-medium">Match Quality</span>
+                    <span className="text-xs font-medium">
+                      {(() => {
+                        const normalizedDistance = Math.max(
+                          0,
+                          Math.min(1, 1 - closestMatch.distance_m / 100),
+                        );
+                        const normalizedSimilarity = Math.max(
+                          0,
+                          (closestMatch.similarity - 0.6) / 0.4,
+                        );
+                        const qualityScore =
+                          (normalizedSimilarity * 0.6 +
+                            normalizedDistance * 0.4) *
+                          100;
+                        return qualityScore.toFixed(0);
+                      })()}
+                      %
+                    </span>
+                  </div>
+                  <Progress
+                    value={(() => {
+                      const normalizedDistance = Math.max(
+                        0,
+                        Math.min(1, 1 - closestMatch.distance_m / 100),
+                      );
+                      const normalizedSimilarity = Math.max(
+                        0,
+                        (closestMatch.similarity - 0.6) / 0.4,
+                      );
+                      return (
+                        (normalizedSimilarity * 0.6 +
+                          normalizedDistance * 0.4) *
+                        100
+                      );
+                    })()}
+                    color={(() => {
+                      const normalizedDistance = Math.max(
+                        0,
+                        Math.min(1, 1 - closestMatch.distance_m / 100),
+                      );
+                      const normalizedSimilarity = Math.max(
+                        0,
+                        (closestMatch.similarity - 0.6) / 0.4,
+                      );
+                      const qualityScore =
+                        (normalizedSimilarity * 0.6 +
+                          normalizedDistance * 0.4) *
+                        100;
+                      if (qualityScore < 40) return "danger";
+                      if (qualityScore < 70) return "warning";
+                      return "success";
+                    })()}
+                    size="sm"
+                    aria-label="Match quality score"
+                  />
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="light"
+                  onPress={() => setDetailsExpanded(!detailsExpanded)}
+                  className="w-full mb-2"
+                >
+                  {detailsExpanded ? "Hide Details" : "Show Details"}
+                </Button>
+
+                {detailsExpanded && (
+                  <>
+                    <Divider className="my-2" />
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="font-medium">Distance:</span>{" "}
+                        {closestMatch.distance_m.toFixed(1)}m
+                      </div>
+                      <div>
+                        <span className="font-medium">Name similarity:</span>{" "}
+                        {(closestMatch.similarity * 100).toFixed(1)}%
+                      </div>
+                      <div className="col-span-2">
+                        <span className="font-medium">Location:</span>{" "}
+                        {closestMatch.lat.toFixed(5)},{" "}
+                        {closestMatch.lon.toFixed(5)}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </Card>
       )}
     </div>

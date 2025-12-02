@@ -220,78 +220,88 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   const hasElements = overpassElements && overpassElements.length > 0;
 
   return (
-    <div className="w-full md:w-2/3 p-4 border-b md:border-r border-gray-200 gap-4 flex flex-col md:h-full overflow-y-auto">
-      <Card>
-        <div className="p-4">
-          {relation.id ? <RelationHeading /> : <LocationAutocomplete />}
-        </div>
-      </Card>
-
-      {hasElements && (
-        <div className="relative">
-          <Divider className="my-4" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background px-2">
-            {currentElement + 1} of {overpassElements.length}
+    <div className="w-full md:w-2/3 relative">
+      <div className="p-4 gap-4 flex flex-col md:h-full overflow-y-auto">
+        <Card>
+          <div className="p-4">
+            {relation.id ? <RelationHeading /> : <LocationAutocomplete />}
           </div>
-        </div>
-      )}
+        </Card>
 
-      <div className="gap-2 flex flex-col md:grow">
-        {hasElements ? (
-          <>
-            {isLoadingTags ? (
-              <div className="flex justify-center items-center mt-4">
-                <Spinner label="Loading element tags..." color="primary" />
-              </div>
-            ) : tagError ? (
-              <Card className="p-4 bg-red-50">
-                <p className="text-red-600 text-sm">{tagError}</p>
-                <Button
-                  size="sm"
-                  color="primary"
-                  className="mt-2"
-                  onPress={onNext}
-                >
-                  Skip to Next
-                </Button>
-              </Card>
-            ) : liveTags && currentMatches ? (
-              <>
-                <CardHeading
-                  name={liveTags && liveTags.name ? liveTags.name : "Unnamed"}
-                  type={currentOsmElement.type}
-                  id={currentOsmElement.id.toString()}
-                />
-
-                <TagComparisonTable
-                  osmTags={liveTags}
-                  matches={currentMatches}
-                  onApplyTags={handleApplyTags}
-                  onNoMatch={handleNoMatch}
-                  onSkip={handleSkip}
-                />
-              </>
-            ) : (
-              <Card className="p-4">
-                <p>No match data available</p>
-                <Button
-                  size="sm"
-                  color="primary"
-                  className="mt-2"
-                  onPress={onNext}
-                >
-                  Skip to Next
-                </Button>
-              </Card>
-            )}
-          </>
-        ) : isLoading ? (
-          <div className="flex justify-center items-center mt-4">
-            <Spinner label="Loading elements..." color="primary" />
+        {hasElements && (
+          <div className="relative">
+            <Divider className="my-4" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background px-2">
+              {currentElement + 1} of {overpassElements.length}
+            </div>
           </div>
-        ) : (
-          <NoRelationPlaceholder />
         )}
+
+        <div className="gap-2 flex flex-col md:grow">
+          {hasElements ? (
+            <>
+              {isLoadingTags ? (
+                <div className="flex justify-center items-center mt-4">
+                  <Spinner label="Loading element tags..." color="primary" />
+                </div>
+              ) : tagError ? (
+                <Card className="p-4 bg-red-50">
+                  <p className="text-red-600 text-sm">{tagError}</p>
+                  <Button
+                    size="sm"
+                    color="primary"
+                    className="mt-2"
+                    onPress={onNext}
+                  >
+                    Skip to Next
+                  </Button>
+                </Card>
+              ) : liveTags && currentMatches ? (
+                <>
+                  <CardHeading
+                    name={liveTags && liveTags.name ? liveTags.name : "Unnamed"}
+                    type={currentOsmElement.type}
+                    id={currentOsmElement.id.toString()}
+                  />
+
+                  <TagComparisonTable
+                    osmTags={liveTags}
+                    matches={currentMatches}
+                    onApplyTags={handleApplyTags}
+                    onNoMatch={handleNoMatch}
+                    onSkip={handleSkip}
+                  />
+                </>
+              ) : (
+                <Card className="p-4">
+                  <p>No match data available</p>
+                  <Button
+                    size="sm"
+                    color="primary"
+                    className="mt-2"
+                    onPress={onNext}
+                  >
+                    Skip to Next
+                  </Button>
+                </Card>
+              )}
+            </>
+          ) : isLoading ? (
+            <div className="flex justify-center items-center mt-4">
+              <Spinner label="Loading elements..." color="primary" />
+            </div>
+          ) : (
+            <NoRelationPlaceholder />
+          )}
+        </div>
+        <Divider
+          orientation="horizontal"
+          className="md:hidden absolute bottom-0 left-0 right-0"
+        />
+        <Divider
+          orientation="vertical"
+          className="hidden md:block absolute top-0 bottom-0 right-0"
+        />
       </div>
     </div>
   );

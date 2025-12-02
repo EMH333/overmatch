@@ -245,8 +245,6 @@ const App: React.FC = () => {
       <Navbar
         uploads={uploadElements}
         setShowFinishedModal={setShowFinishedModal}
-        setShowHelpModal={() => {}}
-        setShowSettingsModal={() => {}}
       />
       <div className="flex flex-col md:flex-row flex-1 bg-background overflow-auto">
         <LeftPane
@@ -256,7 +254,7 @@ const App: React.FC = () => {
           onNext={handleNext}
         />
 
-        <div className="w-full flex md:flex-1 h-[600px] md:h-auto p-4">
+        <div className="w-full flex md:flex-1 h-[450px] md:h-auto p-4">
           <Map points={mapCoordinates} zoom={16} />
         </div>
       </div>
