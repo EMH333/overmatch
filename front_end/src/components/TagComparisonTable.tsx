@@ -272,38 +272,49 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
             )}
           </TableBody>
         </Table>
+        <div className="flex flex-col gap-3">
+          {/* Primary workflow - prominent and grouped */}
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button
+              color="secondary"
+              size="lg"
+              onPress={onNoMatch}
+              className="flex-1 sm:flex-none min-w-40"
+            >
+              Nothing to add
+            </Button>
+            <Button
+              color="primary"
+              size="lg"
+              onPress={handleApplySelected}
+              isDisabled={selectedTags.size === 0}
+              className="flex-1 sm:flex-none min-w-40"
+            >
+              Apply tags <Chip size="sm">{selectedTags.size}</Chip>
+            </Button>
+          </div>
 
-        <div className="flex flex-wrap gap-2 justify-end">
-          <Button
-            color="danger"
-            onPress={onNoMatch}
-            className="flex-1 sm:flex-none min-w-[140px]"
-          >
-            Not a match
-          </Button>
-          <Button
-            color="secondary"
-            onPress={onNoMatch}
-            className="flex-1 sm:flex-none min-w-[140px]"
-          >
-            Nothing to add
-          </Button>
-          <Button
-            color="default"
-            variant="flat"
-            onPress={onSkip}
-            className="flex-1 sm:flex-none min-w-[140px]"
-          >
-            Skip
-          </Button>
-          <Button
-            color="primary"
-            onPress={handleApplySelected}
-            isDisabled={selectedTags.size === 0}
-            className="flex-1 sm:flex-none min-w-[140px]"
-          >
-            Apply tags <Chip size="sm">{selectedTags.size}</Chip>
-          </Button>
+          {/* Secondary actions - smaller, less prominent */}
+          <div className="flex flex-wrap gap-2 justify-end text-sm">
+            <Button
+              color="danger"
+              variant="light"
+              size="sm"
+              onPress={onNoMatch}
+              className="flex-1 sm:flex-none"
+            >
+              Not a match
+            </Button>
+            <Button
+              color="default"
+              variant="flat"
+              size="sm"
+              onPress={onSkip}
+              className="flex-1 sm:flex-none"
+            >
+              Skip
+            </Button>
+          </div>
         </div>
       </>
 

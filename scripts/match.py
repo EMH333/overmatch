@@ -278,6 +278,8 @@ def find_matches_for_point(
                         "grubhub.com",
                         "google.com",
                         "groupon.com",
+                        "toasttab.com",
+                        "bit.ly",
                     ]
                 ):
                     candidate_tags.pop("website")
