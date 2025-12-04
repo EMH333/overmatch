@@ -155,7 +155,7 @@ const App: React.FC = () => {
           setCurrentElement(0);
         }
       } catch (error) {
-        setError("Error fetching or filtering OSM data: " + error);
+        setError(String(error));
       } finally {
         setIsRelationLoading(false);
       }

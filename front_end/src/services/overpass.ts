@@ -45,7 +45,7 @@ export const overpassService = {
       return data.elements;
     } catch (error) {
       console.error("Error fetching from Overpass API:", error);
-      throw error; // Re-throw to handle in component
+      throw "Error fetching from Overpass API: " + error; // Re-throw to handle in component
     }
   },
   async fetchIdsInBbox(bbox: number[]): Promise<OsmElement[]> {

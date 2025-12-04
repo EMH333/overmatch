@@ -30,7 +30,7 @@ export const matchingApi = {
       return data;
     } catch (error) {
       console.error("Error fetching matches:", error);
-      throw error;
+      throw "Error fetching matches: " + error;
     }
   },
 
@@ -61,7 +61,7 @@ export const matchingApi = {
       return data;
     } catch (error) {
       console.error("Error fetching OSM elements:", error);
-      throw error;
+      throw "Error fetching OSM elements: " + error;
     }
   },
 
@@ -95,7 +95,7 @@ export const matchingApi = {
       return data;
     } catch (error) {
       console.error("Error posting OSM elements:", error);
-      throw error;
+      throw "Error posting OSM elements: " + error;
     }
   },
 
@@ -126,7 +126,7 @@ export const matchingApi = {
       return data;
     } catch (error) {
       console.error("Error fetching Overture elements:", error);
-      throw error;
+      throw "Error fetching Overture elements: " + error;
     }
   },
 
@@ -157,7 +157,7 @@ export const matchingApi = {
       return data;
     } catch (error) {
       console.error("Error posting Overture elements:", error);
-      throw error;
+      throw "Error posting Overture elements: " + error;
     }
   },
 };

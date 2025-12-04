@@ -7,12 +7,15 @@ import RelationHeading from "./RelationHeading";
 import LocationAutocomplete from "./LocationAutocomplete";
 import NoRelationPlaceholder from "./NoRelationPlaceholder";
 import TagComparisonTable from "./TagComparisonTable";
+import CardHeading from "./CardHeading";
+import LoginModal from "./modals/LoginModal";
+
 import { OsmElement, OsmRelation, OsmWay, OsmMember, Tags } from "../objects";
 import { useChangesetStore } from "../stores/useChangesetStore";
 import { useElementStore } from "../stores/useElementStore";
 import { fetchElementTags } from "../services/osmApi";
 import { formatOsmId } from "../utils/osmHelpers";
-import CardHeading from "./CardHeading";
+import { useOsmAuthContext } from "../contexts/useOsmAuth";
 import { matchingApi } from "../services/matchingApi";
 
 interface LeftPaneProps {
@@ -34,6 +37,8 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   const [liveTags, setLiveTags] = useState<Tags | null>(null);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
   const [tagError, setTagError] = useState<string>("");
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const { loggedIn, handleLogin } = useOsmAuthContext();
 
   // Cache for preloaded tags
   const tagsCache = useRef<
@@ -180,6 +185,10 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   ]);
 
   const handleApplyTags = (updatedTags: Tags) => {
+    if (!loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!currentOsmElement) return;
 
     // Update the element with new tags
@@ -196,6 +205,10 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   };
 
   const handleNoMatch = () => {
+    if (!loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!currentMatches || !currentMatches[currentSelectedMatchIndex]) return;
 
     const overtureId = currentMatches[currentSelectedMatchIndex].overture_id;
@@ -208,6 +221,10 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   };
 
   const handleSkip = () => {
+    if (!loggedIn) {
+      setIsLoginModalOpen(true);
+      return;
+    }
     if (!currentOsmId) return;
 
     // Mark this OSM element as skipped
@@ -220,90 +237,104 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   const hasElements = overpassElements && overpassElements.length > 0;
 
   return (
-    <div className="w-full md:w-2/3 relative">
-      <div className="p-4 gap-4 flex flex-col md:h-full overflow-y-auto">
-        <Card>
-          <div className="p-4">
-            {relation.id ? <RelationHeading /> : <LocationAutocomplete />}
-          </div>
-        </Card>
-
-        {hasElements && (
-          <div className="relative">
-            <Divider className="my-4" />
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background px-2">
-              {currentElement + 1} of {overpassElements.length}
+    <>
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLogin={() => {
+          handleLogin();
+          setIsLoginModalOpen(false);
+        }}
+      />
+      <div className="w-full md:w-2/3 relative">
+        <div className="p-4 gap-4 flex flex-col md:h-full overflow-y-auto">
+          <Card className="overflow-visible">
+            <div className="p-4">
+              {relation.id ? <RelationHeading /> : <LocationAutocomplete />}
             </div>
-          </div>
-        )}
+          </Card>
 
-        <div className="gap-2 flex flex-col md:grow">
-          {hasElements ? (
-            <>
-              {isLoadingTags ? (
-                <div className="flex justify-center items-center mt-4">
-                  <Spinner label="Loading element tags..." color="primary" />
-                </div>
-              ) : tagError ? (
-                <Card className="p-4 bg-red-50">
-                  <p className="text-red-600 text-sm">{tagError}</p>
-                  <Button
-                    size="sm"
-                    color="primary"
-                    className="mt-2"
-                    onPress={onNext}
-                  >
-                    Skip to Next
-                  </Button>
-                </Card>
-              ) : liveTags && currentMatches ? (
-                <>
-                  <CardHeading
-                    name={liveTags && liveTags.name ? liveTags.name : "Unnamed"}
-                    type={currentOsmElement.type}
-                    id={currentOsmElement.id.toString()}
-                  />
-
-                  <TagComparisonTable
-                    osmTags={liveTags}
-                    matches={currentMatches}
-                    onApplyTags={handleApplyTags}
-                    onNoMatch={handleNoMatch}
-                    onSkip={handleSkip}
-                  />
-                </>
-              ) : (
-                <Card className="p-4">
-                  <p>No match data available</p>
-                  <Button
-                    size="sm"
-                    color="primary"
-                    className="mt-2"
-                    onPress={onNext}
-                  >
-                    Skip to Next
-                  </Button>
-                </Card>
-              )}
-            </>
-          ) : isLoading ? (
-            <div className="flex justify-center items-center mt-4">
-              <Spinner label="Loading elements..." color="primary" />
+          {hasElements && (
+            <div className="relative">
+              <Divider className="my-4" />
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background px-2">
+                {currentElement + 1} of {overpassElements.length}
+              </div>
             </div>
-          ) : (
-            <NoRelationPlaceholder />
           )}
+
+          <div className="gap-2 flex flex-col md:grow">
+            {hasElements ? (
+              <>
+                {isLoadingTags ? (
+                  <div className="flex justify-center items-center mt-4">
+                    <Spinner label="Loading element tags..." color="primary" />
+                  </div>
+                ) : tagError ? (
+                  <Card className="p-4 bg-red-50">
+                    <p className="text-red-600 text-sm">{tagError}</p>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      className="mt-2"
+                      onPress={onNext}
+                    >
+                      Skip to Next
+                    </Button>
+                  </Card>
+                ) : liveTags && currentMatches ? (
+                  <>
+                    <div className="px-2">
+                      <CardHeading
+                        name={
+                          liveTags && liveTags.name ? liveTags.name : "Unnamed"
+                        }
+                        type={currentOsmElement.type}
+                        id={currentOsmElement.id.toString()}
+                      />
+                    </div>
+
+                    <TagComparisonTable
+                      osmTags={liveTags}
+                      matches={currentMatches}
+                      onApplyTags={handleApplyTags}
+                      onNoMatch={handleNoMatch}
+                      onSkip={handleSkip}
+                    />
+                  </>
+                ) : (
+                  <Card className="p-4">
+                    <p>No match data available</p>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      className="mt-2"
+                      onPress={onNext}
+                    >
+                      Skip to Next
+                    </Button>
+                  </Card>
+                )}
+              </>
+            ) : isLoading ? (
+              <div className="flex justify-center items-center mt-4">
+                <Spinner label="Loading elements..." color="primary" />
+              </div>
+            ) : (
+              <NoRelationPlaceholder />
+            )}
+          </div>
+          <Divider
+            orientation="horizontal"
+            className="md:hidden absolute bottom-0 left-0 right-0"
+          />
+          <Divider
+            orientation="vertical"
+            className="hidden md:block absolute top-0 bottom-0 right-0"
+          />
         </div>
-        <Divider
-          orientation="horizontal"
-          className="md:hidden absolute bottom-0 left-0 right-0"
-        />
-        <Divider
-          orientation="vertical"
-          className="hidden md:block absolute top-0 bottom-0 right-0"
-        />
       </div>
-    </div>
+    </>
   );
 };
 

@@ -38,7 +38,7 @@ const AreaCompletedModal: React.FC<AreaCompletedModalProps> = ({
           variant="faded"
           title={"Great work!"}
           description={
-            "Your contributions are helping improve the map for everyone. This area has been fully processed!"
+            "Your contributions are helping improve the map for everyone. This area has no outstanding matches!"
           }
         />
 

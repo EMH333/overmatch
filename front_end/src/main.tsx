@@ -13,15 +13,13 @@ function isDarkModeEnabled(): boolean {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <HeroUIProvider
-      className={`${
-        isDarkModeEnabled() ? "dark" : "light"
-      } text-foreground bg-background`}
-    >
-      <OsmAuthProvider>
-        <App />
-      </OsmAuthProvider>
-    </HeroUIProvider>
-  </React.StrictMode>,
+  <HeroUIProvider
+    className={`${
+      isDarkModeEnabled() ? "dark" : "light"
+    } text-foreground bg-background`}
+  >
+    <OsmAuthProvider>
+      <App />
+    </OsmAuthProvider>
+  </HeroUIProvider>,
 );
