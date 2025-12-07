@@ -48,7 +48,7 @@ def remove_tracking_params_regex(url: str) -> str:
     # This matches utm_*, fbclid, gclid, etc.
     patterns = [
         r"[?&]utm_[^&]*",  # All UTM parameters
-        r"[?&][a-z_]*id=[^&]*",  # Facebook click ID
+        r"[?&][a-z_]*(id|token)=[^&]*",  # Facebook click ID
         r"[?&]_ga=[^&]*",  # Google Analytics
         r"[?&]hsCtaTracking=[^&]*",  # HubSpot
         r"[?&]hsa_[^&]*",  # HubSpot ads
@@ -272,14 +272,38 @@ def find_matches_for_point(
                 if any(
                     keyword in candidate_tags["website"]
                     for keyword in [
-                        "yelp.com",
+                        # order
                         "ubereats.com",
                         "doordash.com",
                         "grubhub.com",
+                        # reservation
+                        "opentable.com",
+                        "resy.com",
+                        # maps
                         "google.com",
+                        "g.page",
+                        "apple.com",
+                        "yelp.com",
                         "groupon.com",
+                        "eventbrite.com",
+                        "musthavemenus.com",
+                        "parkopedia.com",
+                        # POS
                         "toasttab.com",
+                        "dineblast.com",
+                        "thanx.com",
+                        "order.online",
+                        "digitalpour.com",
+                        "waitrapp.com",
+                        "culinarycloud.co",
+                        # misc
                         "bit.ly",
+                        "business.site",
+                        "spotify.com",
+                        "facebook.com",
+                        "instagram.com",
+                        "twitter.com",
+                        "x.com",
                     ]
                 ):
                     candidate_tags.pop("website")
