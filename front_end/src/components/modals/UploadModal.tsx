@@ -124,17 +124,26 @@ const UploadModal: React.FC<UploadModalProps> = ({
             />
 
             <Card className="rounded-lg p-4 w-full mx-4">
-              <h3 className="text-lg font-semibold">Ways</h3>
+              <h3 className="text-lg font-semibold">Elements</h3>
+              <h5 className="text-sm text-gray-500">
+                Listed in the order they were edited
+              </h5>
               {uploads.length === 0 ? (
-                <p className="text-gray-500 text-center">
-                  No elements selected
-                </p>
+                <p className="text-gray-500 text-center">No elements edited</p>
               ) : (
                 <ElementAccordion
                   elements={uploads}
                   onRemoveWay={(index) => {
                     const newUploads = [...uploads];
                     newUploads.splice(index, 1);
+                    setUploadElements(newUploads);
+                  }}
+                  onUpdateTags={(index, updatedTags) => {
+                    const newUploads = [...uploads];
+                    newUploads[index] = {
+                      ...newUploads[index],
+                      tags: updatedTags,
+                    };
                     setUploadElements(newUploads);
                   }}
                   editable={true}

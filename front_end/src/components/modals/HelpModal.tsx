@@ -62,10 +62,10 @@ const tagColorGuide = [
 
 const actionButtons = [
   {
-    name: "Not a match",
-    color: "danger" as const,
+    name: "Apply tags",
+    color: "primary" as const,
     description:
-      "Use this when the Overture data is matched to the wrong OSM element. This marks the Overture element as not matching and it won't appear again.",
+      "Apply the selected Overture tags to the OSM element. The element will be added to your upload queue for review.",
   },
   {
     name: "Nothing to add",
@@ -74,16 +74,19 @@ const actionButtons = [
       "Use this when the match is correct but Overture doesn't provide any useful new information. This also marks the Overture element as processed.",
   },
   {
+    name: "Not a match",
+    color: "danger" as const,
+    variant: "light" as const,
+    description:
+      "Use this when the Overture data is matched to the wrong OSM element. This marks the Overture element as not matching and it won't appear again.",
+  },
+
+  {
     name: "Skip",
     color: "default" as const,
+    variant: "flat" as const,
     description:
       "Use this to temporarily skip this match and come back to it later. The match will appear again on your next session.",
-  },
-  {
-    name: "Apply tags",
-    color: "primary" as const,
-    description:
-      "Apply the selected Overture tags to the OSM element. The element will be added to your upload queue for review.",
   },
 ];
 
@@ -142,6 +145,29 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         </section>
 
         <section>
+          <h3 className="text-lg font-semibold mb-3">Action Buttons</h3>
+          <div className="space-y-3">
+            {actionButtons.map((action, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <Button
+                  size="sm"
+                  variant={action.variant ? action.variant : "solid"}
+                  color={action.color}
+                  className="flex items-center justify-center min-w-32 shrink-0"
+                >
+                  {action.name}
+                </Button>
+                <div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {action.description}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
           <h3 className="text-lg font-semibold mb-3">
             Understanding Tag Colors
           </h3>
@@ -153,29 +179,6 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   <div className="font-medium">{item.label}</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     {item.description}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h3 className="text-lg font-semibold mb-3">Action Buttons</h3>
-          <div className="space-y-3">
-            {actionButtons.map((action, index) => (
-              <div key={index} className="flex items-start gap-3">
-                <Button
-                  size="sm"
-                  // variant="flat"
-                  color={action.color}
-                  className="flex items-center justify-center min-w-32 shrink-0"
-                >
-                  {action.name}
-                </Button>
-                <div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {action.description}
                   </div>
                 </div>
               </div>

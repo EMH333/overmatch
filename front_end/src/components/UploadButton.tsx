@@ -53,7 +53,11 @@ const UploadButton: React.FC<UploadButtonProps> = ({
       className="w-full hover:border-2 hover:border-primary"
       isDisabled={isButtonDisabled}
       isLoading={isUploading}
-      startContent={!isUploading && <Icon src={upload} alt="upload" />}
+      startContent={
+        !isUploading && (
+          <Icon src={upload} alt="upload" invert={false} className="invert" />
+        )
+      }
       onPress={() => handleUpload(uploads)}
     >
       Upload
