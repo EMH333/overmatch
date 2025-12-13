@@ -180,7 +180,8 @@ const MainNavbar: React.FC<NavbarProps> = ({
       />
       <Navbar maxWidth="full" position="static" className="shadow">
         <NavbarBrand className="gap-4 grow-0" as={Link} href="/overmatch/">
-          <img src={logo} alt="Logo" className="w-8 h-8" />
+          {/*<img src={logo} alt="Logo" className="w-8 h-8" />*/}
+          <Icon src={logo} alt="Logo" className="w-8 h-8" />
           <h1 className="text-xl font-bold text-black dark:text-white">
             Overmatch
           </h1>

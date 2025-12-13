@@ -6,7 +6,6 @@ import { Button } from "@heroui/button";
 import tag from "../assets/tag.svg";
 import { useSettingsStore } from "../stores/useSettingsStore";
 
-import cancel from "../assets/cancel.svg";
 import Icon from "./Icon";
 
 interface TagSelectionProps {
@@ -71,11 +70,9 @@ const TagSelection: React.FC<TagSelectionProps> = ({
     const chip = (
       <Chip
         key={key}
-        variant={key.startsWith("tiger") ? "bordered" : "solid"}
+        variant="solid"
         endContent={
-          key.startsWith("tiger") ? (
-            <Icon src={cancel} alt="cancel" size="w-4 h-4" />
-          ) : isWikiKey ? (
+          isWikiKey ? (
             <div className="w-2 h-2 bg-blue-500 rounded-full mr-1" />
           ) : isOsmWikiKey ? (
             <div className="w-2 h-2 bg-green-500 rounded-full mr-1" />
