@@ -11,13 +11,40 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const animationRef = useRef<number | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize with system preference
+    if (typeof window !== "undefined") {
+      const matches = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      return matches;
+    }
+    return false;
+  });
   const [styleLoaded, setStyleLoaded] =
     useState<maplibregl.StyleSpecification | null>(null);
 
+  // Listen for system dark mode changes
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsDarkMode(e.matches);
+    };
+
+    // Modern browsers
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
   // Fetch and cache the vector style
   useEffect(() => {
-    const styleUrl = isDarkMode
+    const styleUrl = !isDarkMode
       ? "https://tiles.openfreemap.org/styles/positron"
       : "https://tiles.openfreemap.org/styles/fiord";
 
@@ -51,6 +78,119 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
     const style = JSON.parse(
       JSON.stringify(styleLoaded),
     ) as maplibregl.StyleSpecification;
+
+    // Add POI layers using circle markers (no glyphs needed)
+    style.layers.push(
+      // POI icons as colored circles - visible from zoom 14+
+      {
+        id: "poi-icons",
+        type: "circle",
+        source: "openmaptiles",
+        "source-layer": "poi",
+        minzoom: 14,
+        filter: [
+          "in",
+          "class",
+          "restaurant",
+          "cafe",
+          "bar",
+          "fast_food",
+          "hospital",
+          "pharmacy",
+          "fuel",
+          "park",
+          "school",
+          "museum",
+          "hotel",
+          "bus",
+          "railway",
+        ],
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            14,
+            3,
+            16,
+            5,
+            18,
+            7,
+          ],
+          "circle-color": [
+            "match",
+            ["get", "class"],
+            ["restaurant", "cafe", "bar", "fast_food"],
+            "#ef4444",
+            ["hospital", "pharmacy"],
+            "#3b82f6",
+            ["fuel"],
+            "#f59e0b",
+            ["park"],
+            "#22c55e",
+            ["school", "museum"],
+            "#8b5cf6",
+            ["hotel"],
+            "#ec4899",
+            ["bus", "railway"],
+            "#06b6d4",
+            "#6b7280",
+          ],
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.9,
+        },
+      } as maplibregl.LayerSpecification,
+      // POI labels - visible from zoom 15+
+      {
+        id: "poi-labels",
+        type: "symbol",
+        source: "openmaptiles",
+        "source-layer": "poi",
+        minzoom: 15,
+        filter: [
+          "in",
+          "class",
+          "restaurant",
+          "cafe",
+          "bar",
+          "fast_food",
+          "hospital",
+          "pharmacy",
+          "fuel",
+          "park",
+          "school",
+          "museum",
+          "hotel",
+          "bus",
+          "railway",
+        ],
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Regular"],
+          "text-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            15,
+            9,
+            17,
+            11,
+            19,
+            13,
+          ],
+          "text-anchor": "top",
+          "text-offset": [0, 0.8],
+          "text-max-width": 8,
+        },
+        paint: {
+          "text-color": isDarkMode ? "#e5e7eb" : "#3d4147",
+          "text-halo-color": isDarkMode ? "#29374a" : "#ffffff",
+          "text-halo-width": 2,
+          // "text-halo-blur": 1,
+        },
+      } as maplibregl.LayerSpecification,
+    );
 
     // If we have valid points, inject our custom sources and layers into the style
     if (hasValidData) {
@@ -333,7 +473,7 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
       map.current?.remove();
       map.current = null;
     };
-  }, [points, zoom, styleLoaded]);
+  }, [points, zoom, styleLoaded, isDarkMode]);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
