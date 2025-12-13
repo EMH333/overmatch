@@ -48,8 +48,6 @@ export const osmXmlBuilder = {
           role: member.role ? member.role : "",
         });
       });
-
-      doc.ele("tag", { k: "type", v: "multipolygon" });
     }
 
     // Add tags
@@ -69,10 +67,13 @@ export const osmXmlBuilder = {
       generator: "overmatch",
     });
 
-    // Iterate through objects
+    // Create a single modify element
+    const modifyElement = doc.ele("modify");
+
+    // Iterate through objects and add them to the modify element
     elements.forEach((element) => {
-      const modifyElement = this.eleToXml(element, changeset, false);
-      doc.ele("modify").import(modifyElement); // Import the element into the modify element
+      const elementXml = this.eleToXml(element, changeset, false);
+      modifyElement.import(elementXml);
     });
 
     // Go back to root and end the document
