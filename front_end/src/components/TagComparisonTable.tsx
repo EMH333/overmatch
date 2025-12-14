@@ -290,7 +290,10 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
               isDisabled={selectedTags.size === 0}
               className="flex-1 sm:flex-none min-w-40"
             >
-              Apply tags <Chip size="sm">{selectedTags.size}</Chip>
+              Apply tags
+              <Chip size="sm">
+                <span className="font-mono">{selectedTags.size}</span>
+              </Chip>
             </Button>
           </div>
 

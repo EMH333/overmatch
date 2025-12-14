@@ -81,6 +81,36 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
 
     // Add POI layers using circle markers (no glyphs needed)
     style.layers.push(
+      // House numbers - visible from zoom 17+ (lowest priority layer)
+      // Only show for features without names
+      {
+        id: "housenumber-labels",
+        type: "symbol",
+        source: "openmaptiles",
+        "source-layer": "housenumber",
+        minzoom: 17,
+        filter: ["!", ["has", "name"]],
+        layout: {
+          "text-field": ["get", "housenumber"],
+          "text-font": ["Noto Sans Regular"],
+          "text-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            17,
+            9,
+            19,
+            11,
+            21,
+            13,
+          ],
+        },
+        paint: {
+          "text-color": isDarkMode ? "#9ca3af" : "#6b7280",
+          "text-halo-color": isDarkMode ? "#29374a" : "#ffffff",
+          "text-halo-width": 1.5,
+        },
+      } as maplibregl.LayerSpecification,
       // POI icons as colored circles - visible from zoom 14+
       {
         id: "poi-icons",
@@ -95,15 +125,17 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
           "cafe",
           "bar",
           "fast_food",
+          "beer",
           "hospital",
-          "pharmacy",
           "fuel",
+          "shop",
           "park",
           "school",
           "museum",
-          "hotel",
-          "bus",
-          "railway",
+          "library",
+          "college",
+          "lodging",
+          "grocery",
         ],
         paint: {
           "circle-radius": [
@@ -120,19 +152,21 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
           "circle-color": [
             "match",
             ["get", "class"],
-            ["restaurant", "cafe", "bar", "fast_food"],
+            ["restaurant", "cafe", "bar", "fast_food", "beer"],
             "#ef4444",
-            ["hospital", "pharmacy"],
+            ["hospital"],
             "#3b82f6",
             ["fuel"],
             "#f59e0b",
+            ["shop"],
+            "#5acbec",
             ["park"],
             "#22c55e",
-            ["school", "museum"],
+            ["school", "museum", "library", "college"],
             "#8b5cf6",
-            ["hotel"],
+            ["lodging"],
             "#ec4899",
-            ["bus", "railway"],
+            ["grocery"],
             "#06b6d4",
             "#6b7280",
           ],
@@ -141,7 +175,7 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
           "circle-opacity": 0.9,
         },
       } as maplibregl.LayerSpecification,
-      // POI labels - visible from zoom 15+
+      // POI labels - visible from zoom 15+ (highest priority)
       {
         id: "poi-labels",
         type: "symbol",
@@ -154,16 +188,18 @@ const Map: React.FC<MapProps> = ({ points, zoom = 15 }) => {
           "restaurant",
           "cafe",
           "bar",
+          "beer",
           "fast_food",
           "hospital",
-          "pharmacy",
           "fuel",
+          "shop",
           "park",
           "school",
           "museum",
-          "hotel",
-          "bus",
-          "railway",
+          "library",
+          "college",
+          "lodging",
+          "grocery",
         ],
         layout: {
           "text-field": ["get", "name"],
