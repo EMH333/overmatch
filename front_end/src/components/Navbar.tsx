@@ -168,7 +168,7 @@ const MainNavbar: React.FC<NavbarProps> = ({
         <DropdownItem
           key="map"
           href={
-            "https://overpass-ultra.us/#map&query=url:https://raw.githubusercontent.com/whubsch/overmatch/main/overpass-ultra.ultra"
+            "https://overpass-ultra.us/#map&query=url:https://raw.githubusercontent.com/whubsch/overmatch/master/overpass-ultra.ultra"
           }
           target="_blank"
           endContent={<IconImage src={map} alt="map" />}
