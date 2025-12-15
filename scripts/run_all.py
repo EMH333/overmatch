@@ -2,6 +2,9 @@
 """
 Sequential script runner that executes Python scripts one after another.
 Only proceeds to the next script if the previous one completes successfully.
+
+Run from the root directory with:
+    python3 -m scripts.run_all
 """
 
 import subprocess
@@ -44,8 +47,8 @@ def main():
     # Define the scripts to run in order
     scripts = [
         ["python3.12", "-m", "get_osm_ids"],
-        ["python3.12", "-m", "build_query"],
-        ["python3.12", "-m", "match"],
+        ["python3.12", "-m", "scripts.build_query"],
+        ["python3.12", "-m", "scripts.match"],
         ["../api/load-matches.sh"],
     ]
 

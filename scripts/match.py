@@ -13,14 +13,14 @@ from rapidfuzz import fuzz
 from rtree import index
 from tqdm import tqdm
 
+start = datetime.now()
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(
-            f"logs/match_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        ),
+        logging.FileHandler(f"logs/match_{start.strftime('%Y%m%d_%H%M%S')}.log"),
         logging.StreamHandler(),
     ],
 )
@@ -169,8 +169,8 @@ def find_matches_for_point(
 ) -> list[dict]:
     """Find matches for a single point - optimized version"""
     matches = []
-    row: pd.Series = row_data[1]
-    row: dict = {k: v for k, v in dict(row).items() if v and v is not None}
+    row_prep: pd.Series = row_data[1]
+    row: dict = {k: v for k, v in dict(row_prep).items() if v and v is not None}
 
     point = row.get("geometry")
     osm_name = row.get("name", "")
@@ -245,12 +245,14 @@ def find_matches_for_point(
             candidate_tags = overturetoosm.process_place(candidate_dict)
 
             try:
-                street_addr = candidate_tags.get("addr:street_address", "")
+                street_addr = candidate_tags.get("addr:full", "")
                 if street_addr:
                     address_tags = atlus.get_address(street_addr)[0]
                     candidate_tags.update(address_tags)
             except ValueError as e:
-                logger.debug(f"Address parsing failed for {street_addr}: {e}")
+                logger.debug(
+                    f"Address parsing failed for {candidate_tags.get('addr:full', '')}: {e}"
+                )
             except Exception as e:
                 logger.warning(f"Unexpected error in address parsing: {e}")
 
@@ -264,7 +266,9 @@ def find_matches_for_point(
                     phone_tag = atlus.get_phone(phone)
                     candidate_tags.update({"phone": phone_tag})
             except ValueError as e:
-                logger.debug(f"Phone parsing failed for {phone}: {e}")
+                logger.debug(
+                    f"Phone parsing failed for {candidate_tags.get('phone', '')}: {e}"
+                )
             except Exception as e:
                 logger.warning(f"Unexpected error in phone parsing: {e}")
 
@@ -311,7 +315,7 @@ def find_matches_for_point(
                     candidate_tags.get("website", "")
                 )
 
-            for toss_tag in ["addr:country", "addr:street_address", "source"]:
+            for toss_tag in ["addr:country", "addr:full", "source"]:
                 candidate_tags.pop(toss_tag, None)
 
             matches.append(
@@ -440,6 +444,27 @@ def main():
         )
         logger.info("Script completed successfully")
         logger.info("=" * 60)
+
+        # Log to file for later reference
+        with open("logs/match_timing.log", "a") as f:
+            f.write(
+                " | ".join(
+                    [
+                        f"{start.strftime('%Y-%m-%d %H:%M:%S')}",
+                        f"Total: {total_duration:.2f} sec ({total_duration / 60:.2f} min)",
+                        f"Load: {load_duration:.2f} sec",
+                        f"Index: {index_duration:.2f} sec",
+                        f"Preprocess: {preprocess_duration:.2f} sec",
+                        f"Match: {matching_duration:.2f} sec",
+                        f"Save: {save_duration:.2f} sec",
+                        f"OSM features: {len(osm_layer)}",
+                        f"Overture features: {len(overture_layer)}",
+                        f"Matches: {len(all_matches)}",
+                        f"Match rate: {len(all_matches) / len(osm_layer):.2f}",
+                    ]
+                )
+                + "\n"
+            )
 
     except Exception as e:
         logger.critical(f"Script failed with error: {e}", exc_info=True)

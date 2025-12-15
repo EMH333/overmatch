@@ -2,10 +2,11 @@
 Script to fetch OpenStreetMap data from QLever API.
 """
 
-import requests
+import datetime
 import json
 import sys
-import datetime
+
+import requests
 
 # Configuration
 QLEVER_ENDPOINT = "https://qlever.dev/api/osm-planet"
@@ -119,7 +120,7 @@ def main():
             print(f"Warning: Unexpected result format: {result}", file=sys.stderr)
 
     # Optionally save to file
-    output_file = "osm_qlever.geojson"
+    output_file = "data/osm_qlever.geojson"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(
             {

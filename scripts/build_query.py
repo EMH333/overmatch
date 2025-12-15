@@ -1,16 +1,22 @@
-import duckdb
+import subprocess
 import time
 from datetime import datetime
+
+import duckdb
+
 from .get_categories import get_subcategories
+from .get_latest_overture_release import get_latest_overture_release
 
 # Start timing
 start_time = time.time()
 start_datetime = datetime.now()
 
-release = "2025-11-19.0"  # latest Overture release
+print("DuckDB query builder script started...")
+
+release = get_latest_overture_release()
 division_id = "f39eb4af-5206-481b-b19e-bd784ded3f05"  # US
 
-confidence = 0.6
+confidence = 0.5
 
 categories = ", ".join(
     [f"'{cat}'" for cat in get_subcategories(["restaurant", "bar", "cafe"])]
@@ -75,9 +81,9 @@ COPY(
         getvariable('boundary'),
         geometry
     )
-) TO 'overture.geojson' WITH (FORMAT GDAL, DRIVER 'GeoJSON');"""
+) TO 'data/overture.geojson' WITH (FORMAT GDAL, DRIVER 'GeoJSON');"""
 
-print(base)
+# print(base)
 duckdb.sql(base)
 
 # Calculate and display execution time
@@ -86,17 +92,39 @@ end_datetime = datetime.now()
 elapsed_seconds = end_time - start_time
 elapsed_minutes = elapsed_seconds / 60
 
+# Count features in the output GeoJSON
+feature_count = 0
+try:
+    feature_count = subprocess.check_output(
+        ["grep", "-c", '"type".*:.*"Feature"', "data/overture.geojson"], text=True
+    ).strip()
+    print(f"Features exported: {feature_count}")
+
+    # Add to log file
+    with open("logs/build_query_timing.log", "a") as f:
+        f.write(f"  └─ Features exported: {feature_count}\n")
+except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    print(f"Could not count features: {e}")
+
+
 print(f"\n{'=' * 60}")
 print("Script execution completed!")
 print(f"Start time: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"End time: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"Total time: {elapsed_minutes:.2f} minutes ({elapsed_seconds:.2f} seconds)")
+print(f"Features exported: {feature_count}")
 print(f"{'=' * 60}")
 
 # Log to file for later reference
 with open("logs/build_query_timing.log", "a") as f:
     f.write(
-        f"{start_datetime.strftime('%Y-%m-%d %H:%M:%S')} | "
-        f"Duration: {elapsed_minutes:.2f} min ({elapsed_seconds:.2f} sec) | "
-        f"Division: {division_id}\n"
+        " | ".join(
+            [
+                f"{start_datetime.strftime('%Y-%m-%d %H:%M:%S')}",
+                f"Duration: {elapsed_minutes:.2f} min ({elapsed_seconds:.2f} sec)",
+                f"Features: {feature_count}",
+                f"Division: {division_id}",
+            ]
+        )
+        + "\n"
     )

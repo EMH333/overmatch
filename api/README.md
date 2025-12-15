@@ -452,6 +452,139 @@ Each item in the matches table contains:
 }
 ```
 
+## Uploading PMTiles to S3
+
+After generating the enriched PMTiles file (see `../scripts/README.md`), you can upload it to S3 for public access.
+
+### Using the Upload Script
+
+```bash
+# Upload with bucket name as argument
+python3 upload_pmtiles.py ../data/matches_enriched.pmtiles my-pmtiles-bucket
+
+# Or use environment variable
+BUCKET_NAME=my-pmtiles-bucket python3 upload_pmtiles.py
+
+# Specify custom S3 key
+python3 upload_pmtiles.py ../data/matches_enriched.pmtiles my-bucket --key tiles/matches.pmtiles
+
+# Use different region
+python3 upload_pmtiles.py ../data/matches_enriched.pmtiles my-bucket --region us-west-2
+```
+
+### Using the Shell Script
+
+```bash
+# Upload with bucket name
+./upload-pmtiles.sh --bucket my-pmtiles-bucket
+
+# With custom file and key
+./upload-pmtiles.sh -b my-bucket -f ../data/matches.pmtiles -k tiles/matches.pmtiles
+
+# Help
+./upload-pmtiles.sh --help
+```
+
+### What the Script Does
+
+1. Validates that the PMTiles file exists
+2. Creates the S3 bucket if it doesn't exist
+3. Configures CORS for web access
+4. Uploads the file with appropriate Content-Type headers
+5. Makes the file publicly readable
+6. Outputs the public URL and usage example
+
+### S3 Bucket Configuration
+
+The script automatically:
+
+- Sets `Content-Type: application/vnd.pmtiles`
+- Configures CORS to allow `GET` and `HEAD` requests from any origin
+- Sets cache headers (`Cache-Control: public, max-age=86400`)
+- Makes the object publicly readable (if permissions allow)
+
+### Using the PMTiles File
+
+Once uploaded, you can use the PMTiles file in MapLibre GL JS:
+
+```javascript
+import maplibregl from "maplibre-gl";
+import { Protocol } from "pmtiles";
+
+// Register PMTiles protocol
+const protocol = new Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+// Create map
+const map = new maplibregl.Map({
+  container: "map",
+  style: "https://your-style.json",
+  center: [-77.0369, 38.9072],
+  zoom: 12,
+});
+
+// Add PMTiles source
+map.on("load", () => {
+  map.addSource("matches", {
+    type: "vector",
+    url: "pmtiles://https://my-bucket.s3.amazonaws.com/matches_enriched.pmtiles",
+  });
+
+  // Add layer with conditional styling based on marking status
+  map.addLayer({
+    id: "matches-points",
+    type: "circle",
+    source: "matches",
+    "source-layer": "matches_enriched",
+    paint: {
+      "circle-radius": 6,
+      "circle-color": [
+        "case",
+        ["all", ["get", "osm_marked"], ["get", "overture_marked"]],
+        "#00ff00", // Green if both marked
+        ["get", "osm_marked"],
+        "#ffaa00", // Orange if OSM marked
+        ["get", "overture_marked"],
+        "#00aaff", // Blue if Overture marked
+        "#ff0000", // Red if neither marked
+      ],
+    },
+  });
+});
+```
+
+### Environment Variables
+
+- `BUCKET_NAME`: S3 bucket name
+- `AWS_REGION`: AWS region (default: us-east-1)
+- `AWS_PROFILE`: AWS profile to use (optional)
+
+### Required Permissions
+
+The script requires AWS credentials with the following S3 permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:PutObject",
+        "s3:PutObjectAcl",
+        "s3:PutBucketCors",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-bucket-name",
+        "arn:aws:s3:::your-bucket-name/*"
+      ]
+    }
+  ]
+}
+```
+
 ## Data Model
 
 ### DynamoDB Tables
