@@ -1,0 +1,88 @@
+---
+title: Overmatch Status
+type: vector
+options:
+  bounds: [ -127.776422, 20.550509, -65.302354, 50.958427 ]
+controls:
+  - type: NavigationControl
+    options:
+      visualizePitch: true
+  - type: GeolocateControl
+style:
+  layers:
+    # Base layer for all unmarked objects
+    - id: unmarked-points
+      type: circle
+      source: ultra
+      source-layer: matches_enriched
+      filter:
+        - all
+        - [ '==', [ 'get', 'osm_marked' ], false ]
+        - [ '==', [ 'get', 'overture_marked' ], false ]
+      paint:
+        circle-radius:
+          - interpolate
+          - - linear
+          - - zoom
+          - 10
+          - 4
+          - 16
+          - 8
+        circle-color: '#94a3b8'
+        circle-opacity: 0.8
+        circle-stroke-width: 1
+        circle-stroke-color: '#475569'
+        circle-stroke-opacity: 0.9
+
+    # Layer for OSM marked objects
+    - id: osm-marked-points
+      type: circle
+      source: ultra
+      source-layer: matches_enriched
+      filter:
+        - '=='
+        - - get
+          - osm_marked
+        - true
+      paint:
+        circle-radius:
+          - interpolate
+          - - linear
+          - - zoom
+          - 10
+          - 5
+          - 16
+          - 10
+        circle-color: '#3b82f6'
+        circle-opacity: 0.85
+        circle-stroke-width: 2
+        circle-stroke-color: '#1e40af'
+        circle-stroke-opacity: 1
+
+    # Layer for Overture marked objects
+    - id: overture-marked-points
+      type: circle
+      source: ultra
+      source-layer: matches_enriched
+      filter:
+        - '=='
+        - - get
+          - overture_marked
+        - true
+      paint:
+        circle-radius:
+          - interpolate
+          - - linear
+          - - zoom
+          - 10
+          - 5
+          - 16
+          - 10
+        circle-color: '#10b981'
+        circle-opacity: 0.85
+        circle-stroke-width: 2
+        circle-stroke-color: '#047857'
+        circle-stroke-opacity: 1
+  extends: https://styles.trailsta.sh/positron.json
+---
+pmtiles://https://overmatch-pmtiles.s3.amazonaws.com/matches_enriched.pmtiles

@@ -20,6 +20,7 @@ import menu from "../assets/menu.svg";
 import link from "../assets/link.svg";
 import upload from "../assets/upload.svg";
 import question from "../assets/question.svg";
+import map from "../assets/map.svg";
 import UserCard from "./UserCard";
 import LoginModal from "./modals/LoginModal";
 import packageJson from "../../package.json";
@@ -163,6 +164,16 @@ const MainNavbar: React.FC<NavbarProps> = ({
           textValue="Help"
         >
           Help
+        </DropdownItem>
+        <DropdownItem
+          key="map"
+          href={
+            "https://overpass-ultra.us/#map&query=url:https://raw.githubusercontent.com/whubsch/overmatch/main/overpass-ultra.ultra"
+          }
+          target="_blank"
+          endContent={<IconImage src={map} alt="map" />}
+        >
+          Match Map
         </DropdownItem>
 
         <DropdownItem key="version" className="text-sm">
