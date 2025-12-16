@@ -5,6 +5,12 @@ import ConfirmationModal from "./modals/ConfirmationModal";
 import search from "../assets/search.svg";
 import Icon from "./Icon";
 
+const OSM_VALUES_WITH_AREA_SUFFIX = [
+  "statistical",
+  "planning",
+  "administrative",
+];
+
 interface LocationFeature {
   properties: {
     name: string;
@@ -48,7 +54,7 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       try {
         setIsLoading(true);
         const response = await fetch(
-          `https://photon.komoot.io/api/?q=${encodeURIComponent(inputValue)}`,
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(inputValue)}&osm_tag=place&osm_tag=boundary&bbox=-171.791,18.916,-66.964,71.357`,
         );
         const data = await response.json();
 
@@ -58,7 +64,20 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
             feature.properties.countrycode === "US",
         );
 
-        setSuggestions(filteredSuggestions);
+        // Deduplicate by osm_type and osm_id
+        const seen = new Set<string>();
+        const deduplicatedSuggestions = filteredSuggestions.filter(
+          (feature: LocationFeature) => {
+            const key = `${feature.properties.osm_type}-${feature.properties.osm_id}`;
+            if (seen.has(key)) {
+              return false;
+            }
+            seen.add(key);
+            return true;
+          },
+        );
+
+        setSuggestions(deduplicatedSuggestions);
         setIsLoading(false);
       } catch (error) {
         console.error("Error fetching suggestions:", error);
@@ -74,15 +93,16 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   }, [inputValue]);
 
   const generateLocationDescription = (feature: LocationFeature): string => {
-    const { state, county, type, osm_value } = feature.properties;
-    if (type !== "other" && state && county) {
-      return `${type} in ${county}, ${state}`;
-    } else if (type !== "other" && state) {
-      return `${type} in ${state}`;
+    const { state, county, osm_value } = feature.properties;
+    const osmLabel = OSM_VALUES_WITH_AREA_SUFFIX.includes(osm_value)
+      ? `${osm_value.replaceAll("_", " ")} area`
+      : osm_value.replaceAll("_", " ");
+    if (state && county) {
+      return `${osmLabel} in ${county}, ${state}`;
     } else if (state) {
-      return `${osm_value.replaceAll("_", " ")} in ${state}`;
+      return `${osmLabel} in ${state}`;
     } else {
-      return `${osm_value.replaceAll("_", " ")}`;
+      return `${osmLabel}`;
     }
   };
 
