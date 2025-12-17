@@ -7,7 +7,7 @@ import LeftPane from "./components/LeftPane";
 import ChangesetModal from "./components/modals/ChangesetModal";
 import UploadModal from "./components/modals/UploadModal";
 import AreaCompletedModal from "./components/modals/AreaCompletedModal";
-import { overpassService } from "./services/overpass";
+import { fetchAmenitiesInRelation } from "./services/qlever";
 import ErrorModal from "./components/modals/ErrorModal";
 import { useChangesetStore } from "./stores/useChangesetStore";
 import { useElementStore } from "./stores/useElementStore";
@@ -30,12 +30,12 @@ const App: React.FC = () => {
     useChangesetStore();
 
   const {
-    overpassElements,
+    osmElements,
     currentElement,
     uploadElements,
     elementMatches,
     selectedMatchIndices,
-    setOverpassElements,
+    setOsmElements,
     setCurrentElement,
     setUploadElements,
     setElementMatches,
@@ -66,14 +66,13 @@ const App: React.FC = () => {
   // Fetch and filter elements when relation is selected
   useEffect(() => {
     const fetchAndFilterElements = async (relationId: string) => {
-      if (!relationId || overpassElements.length > 0) return;
+      if (!relationId || osmElements.length > 0) return;
 
       setIsRelationLoading(true);
 
       try {
-        // Step 1: Fetch all restaurant/amenity elements from Overpass
-        const allElements =
-          await overpassService.fetchIdsInRelation(relationId);
+        // Step 1: Fetch all restaurant/amenity elements from QLever
+        const allElements = await fetchAmenitiesInRelation(relationId);
 
         if (allElements.length === 0) {
           setShowAreaCompletedModal(true);
@@ -151,7 +150,7 @@ const App: React.FC = () => {
         } else {
           // Shuffle and set elements
           const shuffled = shuffleArray(matchedElements);
-          setOverpassElements(shuffled);
+          setOsmElements(shuffled);
           setCurrentElement(0);
         }
       } catch (error) {
@@ -167,29 +166,29 @@ const App: React.FC = () => {
     }
   }, [
     urlParams.relation,
-    overpassElements.length,
+    osmElements.length,
     uploadElements,
     setRelation,
-    setOverpassElements,
+    setOsmElements,
     setCurrentElement,
     setElementMatches,
   ]);
 
   const handleNext = useCallback(() => {
-    if (currentElement < overpassElements.length - 1) {
+    if (currentElement < osmElements.length - 1) {
       setCurrentElement(currentElement + 1);
     } else {
       setShowFinishedModal(true);
     }
-  }, [currentElement, overpassElements.length, setCurrentElement]);
+  }, [currentElement, osmElements.length, setCurrentElement]);
 
   // Get coordinates for current element (OSM) and selected Overture match to show on map
   const mapCoordinates = useMemo((): [number, number][] => {
-    if (overpassElements.length === 0 || !overpassElements[currentElement]) {
+    if (osmElements.length === 0 || !osmElements[currentElement]) {
       return [];
     }
 
-    const currentOsmElement = overpassElements[currentElement];
+    const currentOsmElement = osmElements[currentElement];
     const osmCoords = getElementCoordinates(currentOsmElement);
 
     if (!osmCoords) {
@@ -215,7 +214,7 @@ const App: React.FC = () => {
       [osmCoords.lon, osmCoords.lat] as [number, number],
       [selectedMatch.lon, selectedMatch.lat] as [number, number],
     ];
-  }, [overpassElements, currentElement, elementMatches, selectedMatchIndices]);
+  }, [osmElements, currentElement, elementMatches, selectedMatchIndices]);
 
   return (
     <div className="flex flex-col md:h-screen">
@@ -248,7 +247,7 @@ const App: React.FC = () => {
       />
       <div className="flex flex-col md:flex-row flex-1 bg-background overflow-auto">
         <LeftPane
-          overpassElements={overpassElements}
+          osmElements={osmElements}
           currentElement={currentElement}
           isLoading={isRelationLoading}
           onNext={handleNext}

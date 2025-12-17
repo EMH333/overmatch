@@ -19,14 +19,14 @@ import { useOsmAuthContext } from "../contexts/useOsmAuth";
 import { matchingApi } from "../services/matchingApi";
 
 interface LeftPaneProps {
-  overpassElements: OsmElement[];
+  osmElements: OsmElement[];
   currentElement: number;
   isLoading: boolean;
   onNext: () => void;
 }
 
 const LeftPane: React.FC<LeftPaneProps> = ({
-  overpassElements,
+  osmElements,
   currentElement,
   isLoading,
   onNext,
@@ -49,7 +49,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   >(new Map());
   const preloadAbortController = useRef<AbortController | null>(null);
 
-  const currentOsmElement = overpassElements[currentElement];
+  const currentOsmElement = osmElements[currentElement];
   const currentOsmId = currentOsmElement
     ? formatOsmId(currentOsmElement)
     : null;
@@ -131,9 +131,9 @@ const LeftPane: React.FC<LeftPaneProps> = ({
 
       // Check if there's a next element
       const nextIndex = currentElement + 1;
-      if (nextIndex >= overpassElements.length) return;
+      if (nextIndex >= osmElements.length) return;
 
-      const nextElement = overpassElements[nextIndex];
+      const nextElement = osmElements[nextIndex];
       if (!nextElement) return;
 
       const cacheKey = `${nextElement.type}/${nextElement.id}`;
@@ -176,13 +176,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
         preloadAbortController.current.abort();
       }
     };
-  }, [
-    currentElement,
-    overpassElements,
-    isLoadingTags,
-    currentOsmElement,
-    liveTags,
-  ]);
+  }, [currentElement, osmElements, isLoadingTags, currentOsmElement, liveTags]);
 
   const handleApplyTags = (updatedTags: Tags) => {
     if (!loggedIn) {
@@ -234,7 +228,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
     onNext();
   };
 
-  const hasElements = overpassElements && overpassElements.length > 0;
+  const hasElements = osmElements && osmElements.length > 0;
 
   return (
     <>
@@ -258,7 +252,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
             <div className="relative">
               <Divider className="my-4" />
               <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-background px-2">
-                {currentElement + 1} of {overpassElements.length}
+                {currentElement + 1} of {osmElements.length}
               </div>
             </div>
           )}

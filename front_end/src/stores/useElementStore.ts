@@ -4,13 +4,13 @@ import { OsmElement } from "../objects";
 import { MatchInfo } from "../types/matching";
 
 interface ElementStore {
-  overpassElements: OsmElement[];
+  osmElements: OsmElement[];
   currentElement: number;
   uploadElements: OsmElement[];
   skippedOsmIds: string[];
   elementMatches: Map<string, MatchInfo[]>;
   selectedMatchIndices: Map<string, number>;
-  setOverpassElements: (ways: OsmElement[]) => void;
+  setOsmElements: (ways: OsmElement[]) => void;
   setCurrentElement: (index: number) => void;
   setUploadElements: (ways: OsmElement[]) => void;
   addToUpload: (way: OsmElement) => void;
@@ -23,13 +23,13 @@ interface ElementStore {
 export const useElementStore = create<ElementStore>()(
   persist(
     (set) => ({
-      overpassElements: [],
+      osmElements: [],
       currentElement: 0,
       uploadElements: [],
       skippedOsmIds: [],
       elementMatches: new Map(),
       selectedMatchIndices: new Map(),
-      setOverpassElements: (ways) => set({ overpassElements: ways }),
+      setOsmElements: (ways) => set({ osmElements: ways }),
       setCurrentElement: (index) => set({ currentElement: index }),
       setUploadElements: (ways) => set({ uploadElements: ways }),
       addToUpload: (way) =>
@@ -62,7 +62,7 @@ export const useElementStore = create<ElementStore>()(
         }),
       resetElements: () =>
         set({
-          overpassElements: [],
+          osmElements: [],
           currentElement: 0,
         }),
     }),
