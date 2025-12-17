@@ -3,6 +3,7 @@ import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { Button } from "@heroui/button";
 import ConfirmationModal from "./modals/ConfirmationModal";
 import search from "../assets/search.svg";
+import relation from "../assets/relation.svg";
 import Icon from "./Icon";
 
 const OSM_VALUES_WITH_AREA_SUFFIX = [
@@ -36,13 +37,24 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   className = "",
 }) => {
   const [inputValue, setInputValue] = useState("");
-  const [selectedLocation, setSelectedLocation] =
-    useState<LocationFeature | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedValue, setSelectedValue] = useState<
+    LocationFeature | string | null
+  >(null);
   const [suggestions, setSuggestions] = useState<LocationFeature[]>([]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Derived state: check if current input is a valid integer
+  const isDirectOsmId = /^\d+$/.test(inputValue.trim());
+
   useEffect(() => {
+    // If input is an integer, don't fetch suggestions
+    if (isDirectOsmId) {
+      setSuggestions([]);
+      return;
+    }
+
     // Only fetch if input is long enough
     if (inputValue.length < 2) {
       setSuggestions([]);
@@ -90,7 +102,7 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     const timeoutId = setTimeout(fetchSuggestions, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [inputValue]);
+  }, [inputValue, isDirectOsmId]);
 
   const generateLocationDescription = (feature: LocationFeature): string => {
     const { state, county, osm_value } = feature.properties;
@@ -107,9 +119,14 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   };
 
   const handleSubmit = () => {
-    if (selectedLocation) {
-      // Navigate to the location page with the osm_id
-      window.location.href = `/overmatch/?relation=${selectedLocation.properties.osm_id}`;
+    if (!selectedValue) return;
+
+    // If selectedValue is a string, it's a direct OSM ID
+    if (typeof selectedValue === "string") {
+      window.location.href = `/overmatch/?relation=${selectedValue}`;
+    } else {
+      // Otherwise it's a LocationFeature
+      window.location.href = `/overmatch/?relation=${selectedValue.properties.osm_id}`;
     }
   };
 
@@ -117,6 +134,9 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
   const handleInputChange = (value: string) => {
     setInputValue(value);
   };
+
+  // Determine if submit button should be enabled
+  const isSubmitEnabled = Boolean(selectedValue);
 
   return (
     <div
@@ -140,22 +160,33 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
       <Autocomplete
         label={!compact ? "Location" : undefined}
         aria-label={compact ? "Location Search" : undefined}
-        className={compact ? "grow" : ""}
-        placeholder="Enter a location"
+        className={compact ? "w-2xs" : ""}
+        placeholder="Enter a location or OSM relation ID"
         listboxProps={{
           emptyContent: "No OSM relations found.",
         }}
         isLoading={isLoading}
-        value={inputValue}
+        inputValue={inputValue}
+        selectedKey={selectedKey}
         onInputChange={handleInputChange}
         onSelectionChange={(key) => {
-          const index = Number(key);
-          if (!isNaN(index) && index >= 0 && index < suggestions.length) {
-            setSelectedLocation(suggestions[index]);
-          } else {
-            setSelectedLocation(null);
+          setSelectedKey(key as string);
+          if (key === "direct-osm-id") {
+            // User clicked the direct OSM ID suggestion
+            setSelectedValue(inputValue.trim());
+          } else if (key) {
+            const index = Number(key);
+            if (!isNaN(index) && index >= 0 && index < suggestions.length) {
+              setSelectedValue(suggestions[index]);
+            }
           }
         }}
+        startContent={
+          isDirectOsmId &&
+          inputValue.length > 0 && (
+            <Icon src={relation} alt="relation" size="w-4 h-4" invert={false} />
+          )
+        }
         endContent={
           compact ? (
             <Button
@@ -163,7 +194,7 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
               isIconOnly
               color="primary"
               onPress={() => setIsConfirmModalOpen(true)}
-              isDisabled={!selectedLocation}
+              isDisabled={!isSubmitEnabled}
               className="rounded-full m-1"
               aria-label="Load"
             >
@@ -178,20 +209,28 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
           ) : null
         }
       >
-        {suggestions.map((feature, index) => (
+        {isDirectOsmId && inputValue.length > 0 ? (
           <AutocompleteItem
-            key={index}
-            title={feature.properties.name}
-            description={generateLocationDescription(feature)}
-          >
-            {feature.properties.name}
-          </AutocompleteItem>
-        ))}
+            key="direct-osm-id"
+            title={inputValue.trim()}
+            description="Click to use this relation ID directly"
+          />
+        ) : (
+          suggestions.map((feature, index) => (
+            <AutocompleteItem
+              key={index}
+              title={feature.properties.name}
+              description={generateLocationDescription(feature)}
+            >
+              {feature.properties.name}
+            </AutocompleteItem>
+          ))
+        )}
       </Autocomplete>
       <Button
         color="primary"
         onPress={handleSubmit}
-        isDisabled={!selectedLocation}
+        isDisabled={!isSubmitEnabled}
         className={`${compact ? "hidden" : "w-full"}`}
         aria-label="Load"
       >
