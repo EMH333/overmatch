@@ -25,6 +25,17 @@ const AreaCompletedModal: React.FC<AreaCompletedModalProps> = ({
       subtitle={`Congratulations on completing the ${areaName} area!`}
       actions={[
         {
+          label: "View Match Map",
+          color: "success",
+          variant: "flat",
+          onClick: () => {
+            window.open(
+              "https://overpass-ultra.us/#map&query=url:https://raw.githubusercontent.com/whubsch/overmatch/master/overpass-ultra.ultra",
+              "_blank",
+            );
+          },
+        },
+        {
           label: "Close",
           color: "default",
           variant: "flat",
@@ -42,7 +53,7 @@ const AreaCompletedModal: React.FC<AreaCompletedModalProps> = ({
           }
         />
 
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 space-y-2">
           <p>
             Ready to tackle another area? Try working on a different region to
             improve the map everywhere!

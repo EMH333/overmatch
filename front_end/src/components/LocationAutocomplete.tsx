@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
-import { Button } from "@heroui/button";
+import type { Key } from "react";
 import ConfirmationModal from "./modals/ConfirmationModal";
-import search from "../assets/search.svg";
 import relation from "../assets/relation.svg";
 import Icon from "./Icon";
 
@@ -38,12 +37,12 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [selectedValue, setSelectedValue] = useState<
-    LocationFeature | string | null
-  >(null);
   const [suggestions, setSuggestions] = useState<LocationFeature[]>([]);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingNavigationId, setPendingNavigationId] = useState<string | null>(
+    null,
+  );
 
   // Derived state: check if current input is a valid integer
   const isDirectOsmId = /^\d+$/.test(inputValue.trim());
@@ -118,25 +117,53 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     }
   };
 
-  const handleSubmit = () => {
-    if (!selectedValue) return;
+  const navigateToLocation = (osmId: string) => {
+    window.location.href = `/overmatch/?relation=${osmId}`;
+  };
 
-    // If selectedValue is a string, it's a direct OSM ID
-    if (typeof selectedValue === "string") {
-      window.location.href = `/overmatch/?relation=${selectedValue}`;
+  const handleSelectionChange = (key: Key | null) => {
+    if (!key) return;
+
+    setSelectedKey(String(key));
+    let osmId: string;
+
+    if (String(key) === "direct-osm-id") {
+      // User clicked the direct OSM ID suggestion
+      osmId = inputValue.trim();
     } else {
-      // Otherwise it's a LocationFeature
-      window.location.href = `/overmatch/?relation=${selectedValue.properties.osm_id}`;
+      const index = typeof key === "number" ? key : Number(key);
+      if (!isNaN(index) && index >= 0 && index < suggestions.length) {
+        osmId = suggestions[index].properties.osm_id;
+      } else {
+        return;
+      }
     }
+
+    // If compact mode, show confirmation modal; otherwise navigate immediately
+    if (compact) {
+      setPendingNavigationId(osmId);
+      setIsConfirmModalOpen(true);
+    } else {
+      navigateToLocation(osmId);
+    }
+  };
+
+  const handleConfirmNavigation = () => {
+    if (pendingNavigationId) {
+      navigateToLocation(pendingNavigationId);
+    }
+  };
+
+  const handleCancelNavigation = () => {
+    setIsConfirmModalOpen(false);
+    setPendingNavigationId(null);
+    setSelectedKey(null);
   };
 
   // Handle input change
   const handleInputChange = (value: string) => {
     setInputValue(value);
   };
-
-  // Determine if submit button should be enabled
-  const isSubmitEnabled = Boolean(selectedValue);
 
   return (
     <div
@@ -148,8 +175,8 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
     >
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
-        onClose={() => setIsConfirmModalOpen(false)}
-        onConfirm={handleSubmit}
+        onClose={handleCancelNavigation}
+        onConfirm={handleConfirmNavigation}
         confirmText="Change"
       >
         <p>
@@ -169,44 +196,12 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
         inputValue={inputValue}
         selectedKey={selectedKey}
         onInputChange={handleInputChange}
-        onSelectionChange={(key) => {
-          setSelectedKey(key as string);
-          if (key === "direct-osm-id") {
-            // User clicked the direct OSM ID suggestion
-            setSelectedValue(inputValue.trim());
-          } else if (key) {
-            const index = Number(key);
-            if (!isNaN(index) && index >= 0 && index < suggestions.length) {
-              setSelectedValue(suggestions[index]);
-            }
-          }
-        }}
+        onSelectionChange={handleSelectionChange}
         startContent={
           isDirectOsmId &&
           inputValue.length > 0 && (
             <Icon src={relation} alt="relation" size="w-4 h-4" invert={false} />
           )
-        }
-        endContent={
-          compact ? (
-            <Button
-              size="sm"
-              isIconOnly
-              color="primary"
-              onPress={() => setIsConfirmModalOpen(true)}
-              isDisabled={!isSubmitEnabled}
-              className="rounded-full m-1"
-              aria-label="Load"
-            >
-              <Icon
-                src={search}
-                alt="search"
-                size="w-4 h-4"
-                invert={false}
-                className="stroke-white"
-              />
-            </Button>
-          ) : null
         }
       >
         {isDirectOsmId && inputValue.length > 0 ? (
@@ -227,22 +222,6 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
           ))
         )}
       </Autocomplete>
-      <Button
-        color="primary"
-        onPress={handleSubmit}
-        isDisabled={!isSubmitEnabled}
-        className={`${compact ? "hidden" : "w-full"}`}
-        aria-label="Load"
-      >
-        <Icon
-          src={search}
-          alt="search"
-          size="w-4 h-4"
-          invert={false}
-          className="stroke-white"
-        />
-        Load
-      </Button>
     </div>
   );
 };
