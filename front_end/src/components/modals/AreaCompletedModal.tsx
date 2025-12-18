@@ -43,7 +43,7 @@ const AreaCompletedModal: React.FC<AreaCompletedModalProps> = ({
         },
       ]}
     >
-      <div className="space-y-4 mb-2">
+      <div className="mb-2">
         <Alert
           color="success"
           variant="faded"
@@ -53,7 +53,7 @@ const AreaCompletedModal: React.FC<AreaCompletedModalProps> = ({
           }
         />
 
-        <div className="text-sm text-gray-600 space-y-2">
+        <div className="text-sm dark:text-gray-400 text-gray-600 p-2 my-2">
           <p>
             Ready to tackle another area? Try working on a different region to
             improve the map everywhere!

@@ -95,7 +95,11 @@ const BaseModal: React.FC<BaseModalProps> = ({
               </span>
               <span className="text-2xl">{title.emoji}</span>
             </div>
-            {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+            {subtitle && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {subtitle}
+              </p>
+            )}
           </ModalHeader>
         )}
 

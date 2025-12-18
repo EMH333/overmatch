@@ -15,7 +15,7 @@ import { formatOsmId } from "../../utils/osmHelpers";
 
 interface UploadModalProps {
   show: boolean;
-  ways: number;
+  elementCount: number;
   onClose: () => void;
   uploads: OsmElement[];
   setUploadElements: (elements: OsmElement[]) => void;
@@ -25,7 +25,7 @@ interface UploadModalProps {
 
 const UploadModal: React.FC<UploadModalProps> = ({
   show,
-  ways,
+  elementCount: count,
   onClose,
   uploads,
   setUploadElements,
@@ -105,7 +105,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
       >
         <div className="space-y-6">
           <div className="flex flex-col items-center gap-2">
-            <CountBadge count={ways} verb="reviewed" />
+            <CountBadge count={count} verb="reviewed" />
             <p className="text-center text-medium font-medium">
               The changes you upload as
               <Link

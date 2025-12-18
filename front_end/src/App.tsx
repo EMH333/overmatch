@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [latestChangeset, setLatestChangeset] = useState<number>(0);
   const [showFinishedModal, setShowFinishedModal] = useState(false);
   const [isRelationLoading, setIsRelationLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [showAreaCompletedModal, setShowAreaCompletedModal] = useState(false);
   const { relation, setRelation, setHost, resetDescription } =
@@ -69,6 +70,7 @@ const App: React.FC = () => {
       if (!relationId || osmElements.length > 0) return;
 
       setIsRelationLoading(true);
+      setLoadingStep("Fetching amenities from area...");
 
       try {
         // Step 1: Fetch all restaurant/amenity elements from QLever
@@ -81,10 +83,16 @@ const App: React.FC = () => {
         }
 
         // Step 2: Format OSM IDs and check which ones have matches
+        setLoadingStep(
+          `Checking matches for ${allElements.length.toLocaleString()} element${
+            allElements.length === 1 ? "" : "s"
+          }...`,
+        );
         const osmIds = allElements.map(formatOsmId);
         const matchesResponse = await matchingApi.getMatches(osmIds);
 
         // Step 3: Check which OSM elements have already been seen
+        setLoadingStep("Filtering already reviewed elements...");
         const osmIdsWithMatches = matchesResponse.elements
           .filter((m) => m.has_match)
           .map((m) => m.osm_id);
@@ -92,6 +100,7 @@ const App: React.FC = () => {
           await matchingApi.getOsmElements(osmIdsWithMatches);
 
         // Step 4: Collect all Overture IDs from matches and check which have been skipped
+        setLoadingStep("Checking skipped matches...");
         const allOvertureIds = new Set<string>();
         matchesResponse.elements.forEach((matchStatus) => {
           if (matchStatus.has_match) {
@@ -105,6 +114,7 @@ const App: React.FC = () => {
         );
 
         // Step 5: Create sets for efficient lookup
+        setLoadingStep("Preparing elements for review...");
         const uploadedOsmIds = new Set(uploadElements.map(formatOsmId));
         const seenOsmIds = new Set(
           seenOsmResponse.elements.filter((e) => e.exists).map((e) => e.id),
@@ -157,6 +167,7 @@ const App: React.FC = () => {
         setError(String(error));
       } finally {
         setIsRelationLoading(false);
+        setLoadingStep("");
       }
     };
 
@@ -229,7 +240,7 @@ const App: React.FC = () => {
       />
       <UploadModal
         show={showFinishedModal && !latestChangeset}
-        ways={uploadElements.length}
+        elementCount={uploadElements.length}
         onClose={() => setShowFinishedModal(false)}
         uploads={uploadElements}
         setUploadElements={setUploadElements}
@@ -250,6 +261,7 @@ const App: React.FC = () => {
           osmElements={osmElements}
           currentElement={currentElement}
           isLoading={isRelationLoading}
+          loadingMessage={loadingStep}
           onNext={handleNext}
         />
 

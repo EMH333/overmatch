@@ -9,7 +9,6 @@ import {
   DropdownSection,
 } from "@heroui/dropdown";
 import { Chip } from "@heroui/chip";
-import { Kbd } from "@heroui/kbd";
 import { Tooltip } from "@heroui/tooltip";
 import { Link } from "@heroui/link";
 import { useOsmAuthContext } from "../contexts/useOsmAuth";
@@ -77,7 +76,6 @@ const MainNavbar: React.FC<NavbarProps> = ({
       content={
         <div className="flex gap-2 items-center">
           <p>Review & upload</p>
-          <Kbd>u</Kbd>
         </div>
       }
       delay={250}
@@ -149,14 +147,6 @@ const MainNavbar: React.FC<NavbarProps> = ({
           ))}
         </DropdownSection>
 
-        {/*<DropdownItem
-          key="settings"
-          onPress={() => setShowSettingsModal(true)}
-          endContent={<IconImage src={gear} alt="settings" />}
-          textValue="Settings"
-        >
-          Settings
-        </DropdownItem>*/}
         <DropdownItem
           key="help"
           onPress={() => setShowHelpModal(true)}

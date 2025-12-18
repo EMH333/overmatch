@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { OsmElement } from "../objects";
 import { fetchElementTags } from "../services/osmApi";
 import {
@@ -46,24 +46,9 @@ const ElementAccordionItemContent: React.FC<
     fetchTags();
   }, [isExpanded, element.id, element.type, fetchedTags]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center p-4">
-        <span className="loading-spinner">Loading...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 p-3 rounded-md text-red-800">
-        {error}
-      </div>
-    );
-  }
-
-  // Compare tags
-  const compareTagChanges = () => {
+  // Compare tags - memoized to avoid recalculation on every render
+  // Must be called before early returns to follow React hooks rules
+  const tagChanges = useMemo(() => {
     const oldTags = fetchedTags || {}; // Server tags (old version)
     const newTags = element.tags; // Local tags (new version)
 
@@ -87,9 +72,23 @@ const ElementAccordionItemContent: React.FC<
         status,
       };
     });
-  };
+  }, [fetchedTags, element.tags]);
 
-  const tagChanges = compareTagChanges();
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center p-4">
+        <span className="loading-spinner">Loading...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 p-3 rounded-md text-red-800">
+        {error}
+      </div>
+    );
+  }
 
   const statusClassMap = {
     unchanged: "hover:bg-gray-100 dark:hover:bg-gray-800",

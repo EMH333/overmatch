@@ -40,6 +40,33 @@ const isAutoAddKey = (key: string): boolean => {
   return AUTO_ADD_KEYS.includes(key) || key.startsWith("addr:");
 };
 
+/**
+ * Calculate match quality score based on distance and name similarity
+ * @param match - Match information containing distance and similarity
+ * @returns Quality score from 0-100
+ */
+const calculateMatchQuality = (match: MatchInfo): number => {
+  const normalizedDistance = Math.max(
+    0,
+    Math.min(1, 1 - match.distance_m / 100),
+  );
+  const normalizedSimilarity = Math.max(0, (match.similarity - 0.6) / 0.4);
+  return (normalizedSimilarity * 0.6 + normalizedDistance * 0.4) * 100;
+};
+
+/**
+ * Get color for match quality score
+ * @param qualityScore - Quality score from 0-100
+ * @returns Color string for HeroUI components
+ */
+const getMatchQualityColor = (
+  qualityScore: number,
+): "danger" | "warning" | "success" => {
+  if (qualityScore < 40) return "danger";
+  if (qualityScore < 70) return "warning";
+  return "success";
+};
+
 const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
   osmTags,
   matches,
@@ -348,57 +375,14 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-xs font-medium">Match Quality</span>
                     <span className="text-xs font-medium">
-                      {(() => {
-                        const normalizedDistance = Math.max(
-                          0,
-                          Math.min(1, 1 - closestMatch.distance_m / 100),
-                        );
-                        const normalizedSimilarity = Math.max(
-                          0,
-                          (closestMatch.similarity - 0.6) / 0.4,
-                        );
-                        const qualityScore =
-                          (normalizedSimilarity * 0.6 +
-                            normalizedDistance * 0.4) *
-                          100;
-                        return qualityScore.toFixed(0);
-                      })()}
-                      %
+                      {calculateMatchQuality(closestMatch).toFixed(0)}%
                     </span>
                   </div>
                   <Progress
-                    value={(() => {
-                      const normalizedDistance = Math.max(
-                        0,
-                        Math.min(1, 1 - closestMatch.distance_m / 100),
-                      );
-                      const normalizedSimilarity = Math.max(
-                        0,
-                        (closestMatch.similarity - 0.6) / 0.4,
-                      );
-                      return (
-                        (normalizedSimilarity * 0.6 +
-                          normalizedDistance * 0.4) *
-                        100
-                      );
-                    })()}
-                    color={(() => {
-                      const normalizedDistance = Math.max(
-                        0,
-                        Math.min(1, 1 - closestMatch.distance_m / 100),
-                      );
-                      const normalizedSimilarity = Math.max(
-                        0,
-                        (closestMatch.similarity - 0.6) / 0.4,
-                      );
-                      const qualityScore =
-                        (normalizedSimilarity * 0.6 +
-                          normalizedDistance * 0.4) *
-                        100;
-                      if (qualityScore < 40) return "danger";
-                      if (qualityScore < 70) return "warning";
-                      return "success";
-                    })()}
+                    value={calculateMatchQuality(closestMatch)}
+                    color={getMatchQualityColor(
+                      calculateMatchQuality(closestMatch),
+                    )}
                     size="sm"
                     aria-label="Match quality score"
                   />

@@ -22,6 +22,7 @@ interface LeftPaneProps {
   osmElements: OsmElement[];
   currentElement: number;
   isLoading: boolean;
+  loadingMessage?: string;
   onNext: () => void;
 }
 
@@ -29,6 +30,7 @@ const LeftPane: React.FC<LeftPaneProps> = ({
   osmElements,
   currentElement,
   isLoading,
+  loadingMessage,
   onNext,
 }) => {
   const { relation } = useChangesetStore();
@@ -311,8 +313,12 @@ const LeftPane: React.FC<LeftPaneProps> = ({
                 )}
               </>
             ) : isLoading ? (
-              <div className="flex justify-center items-center mt-4">
-                <Spinner label="Loading elements..." color="primary" />
+              <div className="flex flex-col justify-center items-center mt-4 gap-2">
+                <Spinner
+                  color="primary"
+                  size="lg"
+                  label={loadingMessage || "Loading elements..."}
+                />
               </div>
             ) : (
               <NoRelationPlaceholder />

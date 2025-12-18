@@ -72,7 +72,8 @@ export const LocationAutocomplete: React.FC<LocationAutocompleteProps> = ({
         const filteredSuggestions = data.features.filter(
           (feature: LocationFeature) =>
             feature.properties.osm_type === "R" &&
-            feature.properties.countrycode === "US",
+            feature.properties.countrycode === "US" &&
+            feature.properties.type !== "state",
         );
 
         // Deduplicate by osm_type and osm_id

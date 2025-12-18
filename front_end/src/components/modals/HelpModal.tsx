@@ -11,26 +11,31 @@ interface HelpModalProps {
 
 const workflowSteps = [
   {
+    emoji: "🗺️",
     title: "Select an Area",
     description:
-      "Choose a geographic area by searching for a city, county, or neighborhood relation in the search bar.",
+      "Choose a geographic area by searching for a city, county, or neighborhood in the search bar. Note that states are filtered out because they are too large.",
   },
   {
+    emoji: "🔍",
     title: "Review Matches",
     description:
       "View OSM amenities (restaurants, cafes, bars, etc.) matched with corresponding Overture Maps data.",
   },
   {
+    emoji: "🏷️",
     title: "Compare Tags",
     description:
       "Examine the tag comparison table showing differences between OSM and Overture data. Tags are color-coded for easy identification.",
   },
   {
+    emoji: "✅",
     title: "Apply or Skip",
     description:
       "Apply enriched tags from Overture to OSM elements, or skip matches that don't seem correct.",
   },
   {
+    emoji: "📤",
     title: "Upload Changes",
     description:
       "Review your changes and upload them as a changeset to OpenStreetMap.",
@@ -133,11 +138,12 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
           <ol className="space-y-3">
             {workflowSteps.map((step, index) => (
               <li key={index} className="flex gap-3">
-                <span className="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-                  {index + 1}
+                <span className="shrink-0 flex items-center justify-center w-8 h-8 text-2xl">
+                  {step.emoji}
                 </span>
                 <div>
-                  <strong>{step.title}:</strong> {step.description}
+                  <strong>{step.title}</strong>
+                  <p>{step.description}</p>
                 </div>
               </li>
             ))}
@@ -188,7 +194,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
         <section>
           <h3 className="text-lg font-semibold mb-3">What is Overture Maps?</h3>
-          <div className="gap-2">
+          <div className="flex flex-col gap-4">
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Overture Maps is an open map data initiative that combines data
               from multiple sources. This tool helps you compare Overture's data
