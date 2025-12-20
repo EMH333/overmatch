@@ -3,11 +3,181 @@ title: Overmatch Status
 type: vector
 options:
   bounds: [ -127.776422, 20.550509, -65.302354, 50.958427 ]
-controls:
-  - type: NavigationControl
-    options:
-      visualizePitch: true
-  - type: GeolocateControl
+  attributionControl:
+    customAttribution: 'Generated nightly for <a href="https://whubsch.github.io/overmatch/" target="_blank">Overmatch</a>'
+popupTemplate: |
+  <div class="property-popup">
+     {% if properties.overture_name %}
+     <div class="section header">
+        <h3>{{ properties.overture_name }}</h3>
+        {% if properties.osm_id %}
+        <div class="osm-link">
+           <a href="https://www.openstreetmap.org/{{ properties.osm_id }}" target="_blank">{{ properties.osm_id }} →</a>
+        </div>
+        {% endif %}
+        <div class="status">
+           {% if properties.osm_marked %}
+           <span class="status-chip osm-marked">✓ Merged</span>
+           {% endif %}
+           {% if properties.overture_marked %}
+           <span class="status-chip overture-marked">✗ Dismissed</span>
+           {% endif %}
+        </div>
+        <div class="badges">
+           {% if properties.overture_amenity %}
+           <span class="amenity-badge">{{ properties.overture_amenity | replace: "_", " " | capitalize }}</span>
+           {% endif %}
+           {% if properties.overture_cuisine %}
+           <span class="cuisine-badge">{{ properties.overture_cuisine | replace: "_", " " | capitalize }}</span>
+           {% endif %}
+        </div>
+
+     </div>
+     {% endif %}
+     {% if properties["overture_addr:housenumber"] or properties["overture_addr:street"] %}
+     <div class="section address">
+        <strong>Address:</strong><br>
+        {% if properties["overture_addr:housenumber"] %}{{ properties["overture_addr:housenumber"] }} {% endif %}
+        {% if properties["overture_addr:street"] %}{{ properties["overture_addr:street"] }}{% endif %}<br>
+        {% if properties["overture_addr:city"] %}{{ properties["overture_addr:city"] }}, {% endif %}
+        {% if properties["overture_addr:state"] %}{{ properties["overture_addr:state"] }} {% endif %}
+        {% if properties["overture_addr:postcode"] %}{{ properties["overture_addr:postcode"] }}{% endif %}
+     </div>
+     {% endif %}
+     {% if properties.overture_phone or properties.overture_website %}
+     <div class="section contact">
+        {% if properties.overture_phone %}
+        <div><strong>Phone:</strong> {{ properties.overture_phone }}</div>
+        {% endif %}
+        {% if properties.overture_website %}
+        <div><strong>Website:</strong> <a href="{{ properties.overture_website }}" target="_blank">Visit site →</a></div>
+        {% endif %}
+     </div>
+     {% endif %}
+     {% if properties.distance_m or properties.similarity %}
+     <div class="section metrics">
+        {% if properties.distance_m %}
+        <div><strong>Distance:</strong> {{ properties.distance_m }}m</div>
+        {% endif %}
+        {% if properties.similarity %}
+        <div><strong>Similarity:</strong> {{ properties.similarity }}</div>
+        {% endif %}
+     </div>
+     {% endif %}
+     <div class="section ids">
+        <details>
+           <summary>Technical Details</summary>
+           <div class="id-list">
+              {% if properties.overture_id %}
+              <div><strong>Overture ID:</strong> {{ properties.overture_id }}</div>
+              {% endif %}
+              {% if properties.osm_marked != nil %}
+              <div><strong>OSM Marked:</strong> {{ properties.osm_marked }}</div>
+              {% endif %}
+              {% if properties.osm_first_seen %}
+              <div><strong>OSM First Seen:</strong> {{ properties.osm_first_seen }}</div>
+              {% endif %}
+              {% if properties.osm_last_seen %}
+              <div><strong>OSM Last Seen:</strong> {{ properties.osm_last_seen }}</div>
+              {% endif %}
+              {% if properties.overture_marked != nil %}
+              <div><strong>Overture Marked:</strong> {{ properties.overture_marked }}</div>
+              {% endif %}
+              {% if properties.overture_first_seen %}
+              <div><strong>Overture First Seen:</strong> {{ properties.overture_first_seen }}</div>
+              {% endif %}
+              {% if properties.overture_last_seen %}
+              <div><strong>Overture Last Seen:</strong> {{ properties.overture_last_seen }}</div>
+              {% endif %}
+           </div>
+        </details>
+     </div>
+  </div>
+  <style>
+     .property-popup {
+     font-family: system-ui, -apple-system, sans-serif;
+     width: 300px;
+     line-height: 1.5;
+     border-radius: 8px;
+     border: 3px solid transparent;
+     }
+     .section {
+     margin-bottom: 12px;
+     padding-bottom: 12px;
+     border-bottom: 1px solid #e5e7eb;
+     }
+     .section:last-child {
+     border-bottom: none;
+     margin-bottom: 0;
+     }
+     .header h3 {
+     margin: 0 0 6px 0;
+     font-size: 18px;
+     color: #111827;
+     }
+     .status {
+     margin-top: 4px;
+     margin-bottom: 4px;
+     }
+     .osm-link {
+     font-size: 14px;
+     margin-top: 8px;
+     }
+     .amenity-badge, .cuisine-badge, .osm-marked, .overture-marked {
+     display: inline-block;
+     padding: 2px 8px;
+     margin-right: 4px;
+     font-size: 12px;
+     background: #e0f2fe;
+     color: #0c4a6e;
+     border-radius: 4px;
+     }
+     .cuisine-badge {
+     background: #fef3c7;
+     color: #92400e;
+     }
+     .osm-marked, .overture-marked {
+     font-size: 14px;
+     border-radius: 6px;
+     margin-top: 4px;
+     margin-bottom: 4px;
+     }
+     .osm-marked {
+     background: #cce0ff;
+     color: #1e40af;
+     }
+     .overture-marked {
+     background: #ebbcc0;
+     color: #a12731;
+     }
+     .address, .contact, .metrics {
+     font-size: 14px;
+     color: #374151;
+     }
+     .contact a {
+     color: #2563eb;
+     text-decoration: none;
+     }
+     .contact a:hover {
+     text-decoration: underline;
+     }
+     details summary {
+     cursor: pointer;
+     font-size: 13px;
+     color: #6b7280;
+     user-select: none;
+     }
+     .id-list {
+     margin-top: 8px;
+     font-size: 12px;
+     color: #6b7280;
+     font-family: monospace;
+     }
+     .id-list div {
+     margin: 4px 0;
+     word-break: break-all;
+     }
+  </style>
 style:
   layers:
     # Base layer for all unmarked objects
@@ -17,8 +187,8 @@ style:
       source-layer: matches_enriched
       filter:
         - all
-        - [ '==', [ 'get', 'osm_marked' ], false ]
-        - [ '==', [ 'get', 'overture_marked' ], false ]
+        - ["==", ["get", "osm_marked"], false]
+        - ["==", ["get", "overture_marked"], false]
       paint:
         circle-radius:
           - interpolate
@@ -28,10 +198,10 @@ style:
           - 4
           - 16
           - 8
-        circle-color: '#94a3b8'
+        circle-color: "#94a3b8"
         circle-opacity: 0.8
         circle-stroke-width: 1
-        circle-stroke-color: '#475569'
+        circle-stroke-color: "#475569"
         circle-stroke-opacity: 0.9
 
     # Layer for OSM marked objects
@@ -40,7 +210,7 @@ style:
       source: ultra
       source-layer: matches_enriched
       filter:
-        - '=='
+        - "=="
         - - get
           - osm_marked
         - true
@@ -53,10 +223,10 @@ style:
           - 5
           - 16
           - 10
-        circle-color: '#3b82f6'
+        circle-color: "#3b82f6"
         circle-opacity: 0.85
         circle-stroke-width: 2
-        circle-stroke-color: '#1e40af'
+        circle-stroke-color: "#1e40af"
         circle-stroke-opacity: 1
 
     # Layer for Overture marked objects
@@ -65,7 +235,7 @@ style:
       source: ultra
       source-layer: matches_enriched
       filter:
-        - '=='
+        - "=="
         - - get
           - overture_marked
         - true
@@ -78,10 +248,10 @@ style:
           - 5
           - 16
           - 10
-        circle-color: '#10b981'
+        circle-color: "#10b981"
         circle-opacity: 0.85
         circle-stroke-width: 2
-        circle-stroke-color: '#047857'
+        circle-stroke-color: "#047857"
         circle-stroke-opacity: 1
   extends: https://styles.trailsta.sh/positron.json
 ---
