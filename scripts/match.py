@@ -257,6 +257,18 @@ def find_matches_for_point(
             if "brand" in candidate_dict and "names" in candidate_dict.get("brand", {}):
                 candidate_dict["brand"]["rules"] = None
 
+            # Bad data handling
+            # basic_category missing from data
+            if "basic_category" not in candidate_dict:
+                candidate_dict["basic_category"] = "unknown"
+            # update_time doesn't conform to regex
+            if "sources" in candidate_dict:
+                for source in candidate_dict["sources"]:
+                    if "00:00:00.000" in source.get("update_time"):
+                        source["update_time"] = source["update_time"].replace(
+                            "00.000", "00Z"
+                        )
+
             candidate_tags = overturetoosm.process_place(candidate_dict)
 
             try:

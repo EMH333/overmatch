@@ -3,7 +3,7 @@
 Script to fetch Overture categories and filter for various subcategories.
 
 This script downloads the Overture categories CSV file and extracts all category codes
-where the targeted subcategories are the second entry in the taxonomy hierarchy.
+where the targeted subcategories are in the specified position the taxonomy hierarchy.
 """
 
 import requests
@@ -50,15 +50,15 @@ def parse_taxonomy(taxonomy_string: str) -> list[str]:
         List of category names
     """
     # Remove brackets and split by comma
-    taxonomy_string = taxonomy_string.strip("[]")
+    taxonomy_string = taxonomy_string.strip(" []")
     return [cat.strip() for cat in taxonomy_string.split(",")]
 
 
 def filter_subcategories(
-    targets: list[str], categories: list[tuple[str, str]]
+    targets: dict[int, list[str]], categories: list[tuple[str, str]]
 ) -> list[str]:
     """
-    Filter categories where targets are the second entry in the taxonomy.
+    Filter categories where targets are in specified position in the taxonomy.
 
     Args:
         categories: List of tuples containing (category_code, taxonomy_string)
@@ -71,13 +71,18 @@ def filter_subcategories(
     for category_code, taxonomy_string in categories:
         taxonomy_list = parse_taxonomy(taxonomy_string)
 
-        if any(target in taxonomy_list for target in targets):
-            subcategories.append(category_code)
+        for position, target in targets.items():
+            if position > len(taxonomy_list):
+                continue
+
+            position -= 1
+            if taxonomy_list[position] in target:
+                subcategories.append(category_code)
 
     return subcategories
 
 
-def get_subcategories(targets: list[str] = []) -> list[str]:
+def get_subcategories(targets: dict[int, list[str]]) -> list[str]:
     """Main function to fetch and filter subcategories."""
     url = "https://raw.githubusercontent.com/OvertureMaps/schema/refs/heads/main/docs/schema/concepts/by-theme/places/overture_categories.csv"
 
@@ -88,8 +93,13 @@ def get_subcategories(targets: list[str] = []) -> list[str]:
 
 
 if __name__ == "__main__":
+    # overture categories to filter for, based on position in the taxonomy
+    targets: dict[int, list[str]] = {
+        1: ["accommodation"],
+        2: ["restaurant", "bar", "cafe"],
+        3: ["grocery_store"],
+    }
+
     print("Fetching Overture categories...")
-    subcat = get_subcategories(["restaurant", "bar", "cafe"])
-    print(
-        f"\nFound {len(subcat)} categories where the second entry is one of the targets"
-    )
+    subcat = get_subcategories(targets)
+    print(f"\nFound {len(subcat)} categories that match the targets")

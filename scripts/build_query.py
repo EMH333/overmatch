@@ -19,9 +19,17 @@ division_id = "f39eb4af-5206-481b-b19e-bd784ded3f05"  # US
 confidence = 0.5
 
 categories = ", ".join(
-    [f"'{cat}'" for cat in get_subcategories(["restaurant", "bar", "cafe"])]
+    [
+        f"'{cat}'"
+        for cat in get_subcategories(
+            {
+                2: ["restaurant", "bar", "cafe"],
+            }
+        )
+    ]
 )
 
+print(f"Overture release: {release}")
 
 base = f"""INSTALL spatial; -- noqa
 LOAD spatial; -- noqa
@@ -50,14 +58,28 @@ SET variable boundary = (SELECT geometry FROM bounds LIMIT 1);
 -- Create the GeoJSON output
 COPY(
   SELECT
-    * EXCLUDE (names, addresses, categories, socials, websites, emails, phones, brand, sources, bbox),
-    names::JSON as names,
-    addresses::JSON as addresses,
+    -- Core identifiers
+    id,
+    version,
+    geometry,
+    bbox::JSON as bbox,
+
+    -- Classification
+    basic_category,
     categories::JSON as categories,
-    socials::JSON as socials,
+
+    -- Place details
+    confidence,
+    names::JSON as names,
+
+    -- Contact information
+    addresses::JSON as addresses,
     websites::JSON as websites,
+    socials::JSON as socials,
     emails::JSON as emails,
     phones::JSON as phones,
+
+    -- Brand and source metadata
     brand::JSON as brand,
     sources::JSON as sources
   FROM
