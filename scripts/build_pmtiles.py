@@ -7,8 +7,17 @@ This script automates the conversion of matches.jsonl to PMTiles format:
 2. Converts matches.jsonl to GeoJSON with enriched DynamoDB data
 3. Runs tippecanoe to convert GeoJSON to PMTiles format
 
-Usage:
-    python3.12 build_pmtiles.py [environment]
+Usage (Recommended):
+    Use the wrapper script that handles AWS credential export:
+    ./scripts/build_pmtiles_with_credentials.sh [environment]
+
+Usage (Direct):
+    If your credentials are already in environment variables:
+    python3.12 -m scripts.build_pmtiles [environment]
+
+    If using AWS credential helper (web console login, SSO, etc.):
+    eval $(aws configure export-credentials --format env) && \
+    python3.12 -m scripts.build_pmtiles [environment]
 
 Arguments:
     environment: Environment suffix for DynamoDB tables (e.g., 'production', 'dev')
@@ -17,20 +26,41 @@ Arguments:
 Environment Variables:
     ENVIRONMENT: Environment suffix for table names
     AWS_REGION: AWS region (default: us-east-1)
+    AWS_ACCESS_KEY_ID: AWS access key (required for boto3)
+    AWS_SECRET_ACCESS_KEY: AWS secret key (required for boto3)
+    AWS_SESSION_TOKEN: AWS session token (required for temporary credentials)
     OSM_TABLE_NAME, OVERTURE_TABLE_NAME, MATCHES_TABLE_NAME: Override table names
 
 Requirements:
+- Python 3.12 or later
 - tippecanoe must be installed and available in PATH
   (Install: https://github.com/felt/tippecanoe)
 - AWS credentials configured for DynamoDB access
 
-Example:
-    python3.12 build_pmtiles.py production
+AWS Credentials:
+    boto3 (the AWS SDK for Python) requires credentials to be available as
+    environment variables or in ~/.aws/credentials file. If you're using AWS
+    credential helpers (e.g., logging in via AWS web console), you need to
+    export credentials before running this script:
+
+    $ aws configure export-credentials --format env
+
+    Or use the wrapper script which does this automatically:
+    $ ./scripts/build_pmtiles_with_credentials.sh production
+
+Examples:
+    Using wrapper script (recommended):
+    $ ./scripts/build_pmtiles_with_credentials.sh production
+
+    Direct execution with credential export:
+    $ eval $(aws configure export-credentials --format env)
+    $ python3.12 -m scripts.build_pmtiles production
 """
 
 import os
 import subprocess
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -139,6 +169,8 @@ def main():
         )
     except Exception as e:
         print(f"Error during enrichment: {e}", file=sys.stderr)
+        print("\nFull traceback:", file=sys.stderr)
+        traceback.print_exc()
         sys.exit(1)
 
     # Verify GeoJSON was created
@@ -178,6 +210,8 @@ def main():
     jsonl_size = input_jsonl.stat().st_size / (1024 * 1024)  # MB
     geojson_size = output_geojson.stat().st_size / (1024 * 1024)  # MB
     pmtiles_size = output_pmtiles.stat().st_size / (1024 * 1024)  # MB
+
+    Path(output_geojson).unlink(missing_ok=True)
 
     print("\n" + "=" * 60)
     print("SUCCESS!")

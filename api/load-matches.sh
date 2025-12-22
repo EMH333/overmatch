@@ -40,16 +40,38 @@ if ! command -v aws &> /dev/null; then
 fi
 
 # Parse command line arguments
-MATCHES_FILE="${1:-$DEFAULT_MATCHES_FILE}"
+SKIP_EXISTING_FLAG=""
+if [[ "$*" == *"--skip-existing"* ]]; then
+    SKIP_EXISTING_FLAG="--skip-existing"
+    echo -e "${YELLOW}Mode: Resume mode (skip existing items)${NC}"
+else
+    echo -e "${YELLOW}Mode: Overwrite mode (update all items)${NC}"
+fi
+echo ""
+
+# Get the matches file (first non-flag argument)
+MATCHES_FILE=""
+for arg in "$@"; do
+    if [[ "$arg" != --* ]]; then
+        MATCHES_FILE="$arg"
+        break
+    fi
+done
+MATCHES_FILE="${MATCHES_FILE:-$DEFAULT_MATCHES_FILE}"
 
 if [ ! -f "$MATCHES_FILE" ]; then
     echo -e "${RED}Error: Matches file not found: $MATCHES_FILE${NC}"
     echo ""
-    echo "Usage: $0 [path-to-matches.jsonl]"
+    echo "Usage: $0 [path-to-matches.jsonl] [--skip-existing]"
     echo ""
     echo "Examples:"
-    echo "  $0                                    # Uses default: $DEFAULT_MATCHES_FILE"
+    echo "  $0                                    # Uses default, overwrites existing"
     echo "  $0 /path/to/custom/matches.jsonl     # Uses custom file"
+    echo "  $0 --skip-existing                    # Resume mode, skip existing items"
+    echo "  $0 /path/to/custom.jsonl --skip-existing"
+    echo ""
+    echo "Flags:"
+    echo "  --skip-existing      Skip items already in database (for resuming)"
     echo ""
     echo "Environment variables:"
     echo "  ENVIRONMENT          # Environment name (default: production)"
@@ -97,11 +119,16 @@ else
 fi
 echo ""
 
+# Export AWS credentials for boto3
+# The AWS CLI can access SSO credentials, but boto3 needs them explicitly exported
+echo -e "${YELLOW}Exporting AWS credentials for boto3...${NC}"
+eval $(aws configure export-credentials --format env 2>/dev/null || true)
+
 # Run the Python loader script
 echo -e "${YELLOW}Running data loader...${NC}"
 echo ""
 
-python3.12 "$SCRIPT_DIR/load_matches.py" "$MATCHES_FILE" "$TABLE_NAME" "$AWS_REGION"
+python3.12 "$SCRIPT_DIR/load_matches.py" "$MATCHES_FILE" "$TABLE_NAME" "$AWS_REGION" $SKIP_EXISTING_FLAG
 
 EXIT_CODE=$?
 

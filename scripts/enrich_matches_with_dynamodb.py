@@ -43,7 +43,7 @@ import time
 from pathlib import Path
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 
 
 def scan_dynamodb_table(table_name: str, region_name: str = "us-east-1") -> dict:
@@ -93,6 +93,13 @@ def scan_dynamodb_table(table_name: str, region_name: str = "us-east-1") -> dict
 
         return items
 
+    except NoCredentialsError:
+        print("Error: AWS credentials not found", file=sys.stderr)
+        print(
+            "Please configure AWS credentials using 'aws configure' or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables",
+            file=sys.stderr,
+        )
+        raise
     except ClientError as e:
         print(f"Error scanning table {table_name}: {e}", file=sys.stderr)
         return {}
@@ -305,7 +312,7 @@ def enrich_matches_to_geojson(
 
                 enriched_match = enrich_match(match, osm_data, overture_data)
                 feature = match_to_feature(enriched_match)
-                features.append(feature)
+                features.append({**feature, "id": line_num})
 
                 total_matches += 1
                 if enriched_match.get("osm_marked"):

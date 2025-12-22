@@ -15,6 +15,25 @@ from tqdm import tqdm
 
 start = datetime.now()
 
+URL_REGEX = re.compile(
+    r"^((?:https?:\/\/)?(?:www\.)?(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,})"
+)
+
+TRACKING_PARAMS_PATTERN = [
+    (r"utm_[^&=]*"),  # All UTM parameters
+    (r"[a-z_]*(?:id|token|source|ref)"),  # catchall
+    (r"_ga"),  # Google Analytics
+    (r"hsCtaTracking"),  # HubSpot
+    (r"hsa_[^&=]*"),  # HubSpot ads
+    (r"_hs[^&=]*"),  # HubSpot
+    (r"ref_?"),  # Generic ref parameters
+    (r"lipi"),  # LinkedIn
+]
+
+TRACKING_PARAMS_REGEX = re.compile(
+    r"&?(?:" + "|".join(TRACKING_PARAMS_PATTERN) + r")(=[^&=]+)"
+)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -44,23 +63,8 @@ def remove_tracking_params_regex(url: str) -> str:
     if not url:
         return url
 
-    # Pattern to match common tracking parameters
-    # This matches utm_*, fbclid, gclid, etc.
-    patterns = [
-        r"[?&]utm_[^&]*",  # All UTM parameters
-        r"[?&][a-z_]*(id|token)=[^&]*",  # Facebook click ID
-        r"[?&]_ga=[^&]*",  # Google Analytics
-        r"[?&]hsCtaTracking=[^&]*",  # HubSpot
-        r"[?&]hsa_[^&]*",  # HubSpot ads
-        r"[?&]_hs[^&]*",  # HubSpot
-        r"[?&]ref_?=[^&]*",  # Generic ref parameters
-        r"[?&]lipi=[^&]*",  # LinkedIn
-        r"[?&][a-z]+_source=[^&]*",  # LinkedIn
-    ]
-
-    cleaned_url = url
-    for pattern in patterns:
-        cleaned_url = re.sub(pattern, "", cleaned_url)
+    # Remove all tracking parameters in a single pass
+    cleaned_url = TRACKING_PARAMS_REGEX.sub("", url)
 
     # Replace & at the start of query string with ?
     cleaned_url = re.sub(r"\?&", "?", cleaned_url.rstrip("&?"))
@@ -130,7 +134,13 @@ def preprocess_overture_layer(overture_layer: gpd.GeoDataFrame) -> dict:
     """Pre-extract frequently accessed data for faster lookup"""
     logger.info("Preprocessing Overture layer for faster access...")
 
-    preprocessed = {"names": [], "ids": [], "lon": [], "lat": [], "geometries": []}
+    preprocessed: dict = {
+        "names": [],
+        "ids": [],
+        "lon": [],
+        "lat": [],
+        "geometries": [],
+    }
 
     # Extract data by position to match spatial index
     for i in range(len(overture_layer)):
@@ -150,10 +160,10 @@ def preprocess_overture_layer(overture_layer: gpd.GeoDataFrame) -> dict:
         preprocessed["geometries"].append(row.geometry)
 
     # Convert to numpy for faster indexing
-    preprocessed["names"] = np.array(preprocessed["names"], dtype=object)
-    preprocessed["ids"] = np.array(preprocessed["ids"], dtype=object)
-    preprocessed["lon"] = np.array(preprocessed["lon"], dtype=float)
-    preprocessed["lat"] = np.array(preprocessed["lat"], dtype=float)
+    preprocessed["names"] = np.array(preprocessed["names"], dtype=object)  # type: ignore
+    preprocessed["ids"] = np.array(preprocessed["ids"], dtype=object)  # type: ignore
+    preprocessed["lon"] = np.array(preprocessed["lon"], dtype=float)  # type: ignore
+    preprocessed["lat"] = np.array(preprocessed["lat"], dtype=float)  # type: ignore
 
     logger.info("Preprocessing complete")
     return preprocessed
@@ -169,17 +179,22 @@ def find_matches_for_point(
 ) -> list[dict]:
     """Find matches for a single point - optimized version"""
     matches = []
-    row_prep: pd.Series = row_data[1]
+    row_prep = row_data[1]
     row: dict = {k: v for k, v in dict(row_prep).items() if v and v is not None}
 
     point = row.get("geometry")
     osm_name = row.get("name", "")
 
     # Skip if no name
-    if not osm_name or pd.isna(osm_name):
+    if not osm_name or (isinstance(osm_name, float) and pd.isna(osm_name)):
         return matches
 
+    # Ensure osm_name is a string for type safety
+    osm_name = str(osm_name)
+
     # Buffer in meters (since we're using EPSG:3857)
+    if point is None:
+        return matches
     bounds = point.buffer(buffer_distance).bounds
 
     # Get candidate indices from spatial index
@@ -308,12 +323,32 @@ def find_matches_for_point(
                         "instagram.com",
                         "twitter.com",
                         "x.com",
+                        "whitepages.com",
+                        "yellowpages.com",
+                        "yahoo.com",
+                        "mapquest.com",
+                        "glassdoor.com",
+                        "restaurant.com",
+                        "cortera.com",
+                        "finduslocal.com",
+                        "redfin.com",
+                        "dandb.com",
+                        "chamberofcommerce.com",
+                        "wikidot.com",
+                        "...",
+                        '"',
                     ]
                 ):
                     candidate_tags.pop("website")
-                candidate_tags["website"] = remove_tracking_params_regex(
-                    candidate_tags.get("website", "")
-                )
+                elif "website" in candidate_tags and candidate_tags["website"]:
+                    candidate_tags["website"] = (
+                        URL_REGEX.sub(
+                            lambda m: m.group(0).lower(),
+                            remove_tracking_params_regex(candidate_tags["website"]),
+                        )
+                        .replace("?&", "?")
+                        .rstrip("?& ")
+                    )
 
             for toss_tag in ["addr:country", "addr:full", "source"]:
                 candidate_tags.pop(toss_tag, None)

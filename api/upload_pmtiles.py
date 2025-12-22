@@ -5,23 +5,53 @@ Upload PMTiles file to AWS S3.
 This script uploads the enriched PMTiles file to an S3 bucket for public access.
 The file is uploaded with appropriate headers for serving PMTiles to web clients.
 
-Usage:
-    python3 upload_pmtiles.py [pmtiles_file] [bucket_name] [--key KEY]
+Usage (Recommended):
+    Use the wrapper script that handles AWS credential export:
+    ./api/upload-pmtiles.sh --bucket my-bucket
+
+Usage (Direct):
+    If your credentials are already in environment variables:
+    python3.12 upload_pmtiles.py [pmtiles_file] --bucket BUCKET [--key KEY]
+
+    If using AWS credential helper (web console login, SSO, etc.):
+    eval $(aws configure export-credentials --format env) && \
+    python3.12 upload_pmtiles.py --bucket my-bucket
 
 Arguments:
     pmtiles_file: Path to PMTiles file (default: ../data/matches_enriched.pmtiles)
-    bucket_name: S3 bucket name (required if BUCKET_NAME env var not set)
+    --bucket, -b: S3 bucket name (required if BUCKET_NAME env var not set)
     --key: S3 object key/path (default: matches_enriched.pmtiles)
+    --region: AWS region (default: us-east-1)
 
 Environment Variables:
     BUCKET_NAME: S3 bucket name
     AWS_REGION: AWS region (default: us-east-1)
+    AWS_ACCESS_KEY_ID: AWS access key (required for boto3)
+    AWS_SECRET_ACCESS_KEY: AWS secret key (required for boto3)
+    AWS_SESSION_TOKEN: AWS session token (required for temporary credentials)
     AWS_PROFILE: AWS profile to use (optional)
 
+AWS Credentials:
+    boto3 (the AWS SDK for Python) requires credentials to be available as
+    environment variables or in ~/.aws/credentials file. If you're using AWS
+    credential helpers (e.g., logging in via AWS web console), you need to
+    export credentials before running this script:
+
+    $ aws configure export-credentials --format env
+
+    Or use the wrapper script which does this automatically:
+    $ ./api/upload-pmtiles.sh --bucket my-bucket
+
 Examples:
-    python3 upload_pmtiles.py --bucket my-bucket
-    python3 upload_pmtiles.py ../data/matches.pmtiles my-bucket --key tiles/matches.pmtiles
-    BUCKET_NAME=my-bucket python3 upload_pmtiles.py
+    Using wrapper script (recommended):
+    $ ./api/upload-pmtiles.sh --bucket my-bucket
+
+    Direct execution with credential export:
+    $ eval $(aws configure export-credentials --format env)
+    $ python3.12 upload_pmtiles.py --bucket my-bucket
+
+    Custom file and key:
+    $ python3.12 upload_pmtiles.py ../data/custom.pmtiles --bucket my-bucket --key tiles/custom.pmtiles
 """
 
 import argparse
@@ -242,9 +272,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Using wrapper script (recommended):
+  ./api/upload-pmtiles.sh --bucket my-bucket
+
+  # Direct execution:
   %(prog)s --bucket my-bucket
   %(prog)s ../data/matches.pmtiles --bucket my-bucket --key tiles/matches.pmtiles
-  BUCKET_NAME=my-bucket %(prog)s
+
+  # With credential export:
+  eval $(aws configure export-credentials --format env) && %(prog)s --bucket my-bucket
         """,
     )
 
@@ -294,11 +330,15 @@ Examples:
     # Determine bucket name
     bucket_name = args.bucket_name or os.getenv("BUCKET_NAME")
     if not bucket_name:
-        print("Error: Bucket name required", file=sys.stderr)
+        print("✗ Error: Bucket name required", file=sys.stderr)
         print(
-            "  Provide as argument or set BUCKET_NAME environment variable",
+            "  Provide with --bucket argument or set BUCKET_NAME environment variable",
             file=sys.stderr,
         )
+        print("\nUsage:", file=sys.stderr)
+        print(f"  {sys.argv[0]} --bucket BUCKET_NAME", file=sys.stderr)
+        print("  or", file=sys.stderr)
+        print(f"  BUCKET_NAME=my-bucket {sys.argv[0]}", file=sys.stderr)
         sys.exit(1)
 
     # Upload
