@@ -171,7 +171,6 @@ def upload_to_dynamodb(
     skipped = 0
 
     osm_ids = list(grouped_matches.keys())
-    total = len(osm_ids)
 
     # Check for existing items to enable resume
     existing_ids = set()
@@ -229,7 +228,7 @@ def upload_to_dynamodb(
                     ):
                         if retry_count < max_retries:
                             print(
-                                f"\n⚠️  Credentials expired. Please run 'aws sso login' in another terminal, then press Enter to retry..."
+                                "\n⚠️  Credentials expired. Please run 'aws sso login' in another terminal, then press Enter to retry..."
                             )
                             input()
                             print("Retrying with refreshed credentials...")

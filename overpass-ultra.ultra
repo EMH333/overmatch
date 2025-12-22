@@ -1,6 +1,11 @@
 ---
 title: Overmatch Status
 type: vector
+controls:
+  - type: NavigationControl
+  - type: GeolocateControl
+    options:
+      enableHighAccuracy: true
 options:
   bounds: [ -127.776422, 20.550509, -65.302354, 50.958427 ]
   attributionControl:
@@ -21,6 +26,9 @@ popupTemplate: |
            {% endif %}
            {% if properties.overture_marked %}
            <span class="status-chip overture-marked">✗ Dismissed</span>
+           {% endif %}
+           {% if not properties.overture_marked and not properties.osm_marked %}
+           <span class="status-chip not-marked">� Unreviewed</span>
            {% endif %}
         </div>
         <div class="badges">
@@ -123,7 +131,7 @@ popupTemplate: |
      font-size: 14px;
      margin-top: 8px;
      }
-     .amenity-badge, .cuisine-badge, .osm-marked, .overture-marked {
+     .amenity-badge, .cuisine-badge, .osm-marked, .overture-marked, .not-marked {
      display: inline-block;
      padding: 2px 8px;
      margin-right: 4px;
@@ -136,7 +144,7 @@ popupTemplate: |
      background: #fef3c7;
      color: #92400e;
      }
-     .osm-marked, .overture-marked {
+     .osm-marked, .overture-marked, .not-marked {
      font-size: 14px;
      border-radius: 6px;
      margin-top: 4px;
@@ -149,6 +157,10 @@ popupTemplate: |
      .overture-marked {
      background: #ebbcc0;
      color: #a12731;
+     }
+     .not-marked {
+     background: #cad4e3;
+     color: #475569;
      }
      .address, .contact, .metrics {
      font-size: 14px;
