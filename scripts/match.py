@@ -373,6 +373,22 @@ def find_matches_for_point(
                         .rstrip("?& ")
                     )
 
+            # Remove toll-free numbers
+            if "phone" in candidate_tags and any(
+                toll_free in candidate_tags["phone"]
+                for toll_free in [
+                    "+1-800",
+                    "+1-888",
+                    "+1-877",
+                    "+1-866",
+                    "+1-877",
+                    "+1-855",
+                    "+1-844",
+                    "+1-833",
+                ]
+            ):
+                candidate_tags.pop("phone")
+
             for toss_tag in ["addr:country", "addr:full", "source"]:
                 candidate_tags.pop(toss_tag, None)
 
