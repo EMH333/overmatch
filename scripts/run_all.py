@@ -46,9 +46,9 @@ def run_script(scripts: list[str]) -> bool:
 def main():
     # Define the scripts to run in order
     scripts = [
-        # ["python3.12", "-m", "scripts.get_osm_ids"],
-        ["python3.12", "-m", "scripts.build_query"],
-        ["python3.12", "-m", "scripts.match"],
+        ["venv/bin/python", "-m", "scripts.get_osm_ids"],
+        ["venv/bin/python", "-m", "scripts.build_query"],
+        ["venv/bin/python", "-m", "scripts.match"],
         ["../api/load-matches.sh"],
     ]
 

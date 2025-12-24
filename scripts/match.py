@@ -15,9 +15,23 @@ from tqdm import tqdm
 
 start = datetime.now()
 
-URL_REGEX = re.compile(
-    r"^((?:https?:\/\/)?(?:www\.)?(?:[a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,})"
-)
+
+def lowercase_url(url: str) -> str:
+    """
+    Use splitting and lowercase to convert a URL to lowercase.
+    """
+    # Split by '//' to separate protocol from the rest
+    if "//" in url:
+        protocol, rest = url.split("//", 1)
+        protocol += "//"
+    else:
+        protocol, rest = "", url
+
+    # Split domain from path and lowercase the domain
+    domain, _, path = rest.partition("/")
+
+    return protocol + domain.lower() + ("/" + path if path else "")
+
 
 TRACKING_PARAMS_PATTERN = [
     (r"utm_[^&=]*"),  # All UTM parameters
@@ -353,11 +367,8 @@ def find_matches_for_point(
                 ):
                     candidate_tags.pop("website")
                 elif "website" in candidate_tags and candidate_tags["website"]:
-                    candidate_tags["website"] = (
-                        URL_REGEX.sub(
-                            lambda m: m.group(0).lower(),
-                            remove_tracking_params_regex(candidate_tags["website"]),
-                        )
+                    candidate_tags["website"] = lowercase_url(
+                        remove_tracking_params_regex(candidate_tags["website"])
                         .replace("?&", "?")
                         .rstrip("?& ")
                     )
