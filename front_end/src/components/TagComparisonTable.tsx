@@ -13,6 +13,7 @@ import { Card } from "@heroui/card";
 import { Alert } from "@heroui/alert";
 import { Progress } from "@heroui/progress";
 import { Checkbox } from "@heroui/checkbox";
+import { Link } from "@heroui/link";
 import { Tags } from "../objects";
 import { MatchInfo } from "../types/matching";
 import { Divider } from "@heroui/react";
@@ -198,6 +199,22 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
     }
   };
 
+  const linkButton = (href?: string) => (
+    <div className="flex flex-row items-center gap-2">
+      {href}
+      <Button
+        as={Link}
+        href={href}
+        target="_blank"
+        color="primary"
+        size="sm"
+        radius="full"
+        isIconOnly
+        showAnchorIcon
+      />
+    </div>
+  );
+
   const handleApplySelected = () => {
     const newTags: Tags = { ...osmTags };
 
@@ -275,14 +292,18 @@ const TagComparisonTable: React.FC<TagComparisonTableProps> = ({
                       {comparison.key}
                     </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {comparison.osmValue || (
-                        <span className="text-gray-400">-</span>
-                      )}
+                      {comparison.key === "website" && comparison.osmValue
+                        ? linkButton(comparison.osmValue)
+                        : comparison.osmValue || (
+                            <span className="text-gray-400">-</span>
+                          )}
                     </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {overtureValue || (
-                        <span className="text-gray-400">-</span>
-                      )}
+                      {comparison.key === "website" && overtureValue
+                        ? linkButton(overtureValue)
+                        : overtureValue || (
+                            <span className="text-gray-400">-</span>
+                          )}
                     </TableCell>
                     <TableCell>
                       <Chip

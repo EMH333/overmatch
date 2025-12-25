@@ -5,7 +5,8 @@ controls:
   - type: NavigationControl
   - type: GeolocateControl
     options:
-      enableHighAccuracy: true
+      positionOptions:
+        enableHighAccuracy: true
 options:
   bounds: [ -127.776422, 20.550509, -65.302354, 50.958427 ]
   attributionControl:
